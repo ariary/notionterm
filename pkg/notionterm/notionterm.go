@@ -2,6 +2,7 @@ package notionterm
 
 import (
 	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -19,15 +20,44 @@ func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pau
 				//fmt.Println("play")
 			}
 		default:
-			cmd, err := RequestTerminalCodeContent(client, pageid)
+			termBlock, err := RequestTerminalBlock(client, pageid)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			cmd, err := GetTerminalLastRichText(termBlock)
 			if err != nil {
 				fmt.Println(err)
 			}
-			if strings.Contains(cmd, "\n") {
+			fmt.Println("last:", cmd)
+			if strings.Contains(cmd, "\n") && strings.HasPrefix(cmd, "$ ") {
 				if isCommand(cmd) {
-					cmd = strings.Split(cmd, "$ ")[1] //todo check len
-					//execute it
+					cmdSplit := strings.Split(cmd, "$ ")
+					if len(cmdSplit) > 1 {
+						cmd = cmdSplit[1] //todo check len
+					}
+					//execute it and print
 					fmt.Println(cmd)
+					cmmandExec := exec.Command("sh", "-c", cmd)
+					stdout, err := cmmandExec.Output()
+
+					if err != nil {
+						fmt.Println(err.Error())
+						return
+					}
+					// Print the output
+					//fmt.Println(string(stdout))
+					if _, err := AddRichText(client, termBlock, string(stdout)); err != nil {
+						fmt.Println(err)
+					}
+
+					//refresh+add new terminal line ($)
+					termBlock, err = RequestTerminalBlock(client, pageid)
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+					AddTermLine(client, termBlock)
 				}
 			}
 		}
