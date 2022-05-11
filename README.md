@@ -26,7 +26,7 @@ Just use notion as usual and launch <code>notionterm</code>.
 <h3 >Requirements 🖊️</h3>
  <ul>
   <li>Notion software and API key</li>
-  <li>Allowed Bidirectionnal HTTP communication between host and target</li>
+  <li>Allowed bidirectionnal HTTP communication between host and target</li>
   <li>Prior RCE on target</li>
 </ul> 
 </div>
