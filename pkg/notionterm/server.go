@@ -11,7 +11,7 @@ import (
 
 const buttonPageTpl = `
 <html>
-    <body>
+    <body onload="document.getElementById('switch').innerText= 'ON'">
         <script>
 function Activate() {
     var switchButton = document.getElementById("switch");
