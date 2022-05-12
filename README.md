@@ -19,7 +19,7 @@
   <li>Hiding attacker IP in reverse shell <i>(Notion ~ reverse proxy shell)</i></li>
   <li>Demo</li>
   <li>Quick proof insertion within report</li>
-  <li>Kind of webshell (if using notion in browser)</li>
+  <li>High available reverse shell (desktop, browser, mobile)</li>
 </ul> 
 </div>
 <div align=left>
