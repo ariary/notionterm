@@ -32,7 +32,7 @@
 ---
 <div align=left>
 <h3 >Why? 🤔 </h3>
-The focus was on making something fun while still being usable, but that's not meant to be THE solution for reverse shell in your pentester's arsenal
+The focus was on making something fun while still being usable, but that's not meant to be THE solution for reverse shell in the pentester's arsenal
 </div>
 <div align=right>
 <h3 >How?  🤷‍♂️</h3>
