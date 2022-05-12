@@ -10,7 +10,7 @@
 
 ---
 
-![demo](https://github.com/ariary/Notionion/blob/main/img/demo-fast.gif)
+![demo](https://github.com/ariary/notionterm/blob/main/img/demo-first.gif)
 
 ---
 <div align=left>
@@ -19,12 +19,14 @@
   <li>Hide attacker IP in your reverse shell <i>(Notion ~ reverse proxy shell)</i></li>
   <li>Demo</li>
   <li>Quick proof insertion within report</li>
+  <li>Kind of webshell (if using notion in browser)</li>
 </ul> 
 </div>
 <div align=left>
 <h3>NOT FOR ➖:</h3>
 <ul>
   <li>Long and robust shell session (see <a href=https://github.com/ariary/tacos>tacos</a> for that)</li>
+  <li>Secure remote shell (Logically only person with writing access to your notion page can make rce with but...)</li>
 </ul> 
 
 ---
