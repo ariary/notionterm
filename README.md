@@ -10,7 +10,7 @@
 
 ---
 
-![demo](https://github.com/ariary/Notionion/blob/main/img/demo-fast.gif)
+![demo](https://github.com/ariary/notionterm/blob/main/img/demo-first.gif)
 
 ---
 <div align=left>
