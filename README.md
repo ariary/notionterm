@@ -16,7 +16,7 @@
 <div align=left>
 <h3>FOR ➕:</h3>
 <ul>
-  <li>Hide attacker IP in your reverse shell <i>(Notion ~ reverse proxy shell)</i></li>
+  <li>Hiding attacker IP in reverse shell <i>(Notion ~ reverse proxy shell)</i></li>
   <li>Demo</li>
   <li>Quick proof insertion within report</li>
   <li>Kind of webshell (if using notion in browser)</li>
