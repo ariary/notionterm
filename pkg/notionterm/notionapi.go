@@ -20,6 +20,15 @@ func GetButtonBlock(children notionapi.Blocks) (button notionapi.EmbedBlock, err
 	return button, err
 }
 
+//RequestButtonBlock: retrieve "button" widget (embed block)
+func RequestButtonBlock(client *notionapi.Client, pageid string) (terminal notionapi.EmbedBlock, err error) {
+	children, err := notionion.RequestProxyPageChildren(client, pageid)
+	if err != nil {
+		return terminal, err
+	}
+	return GetButtonBlock(children)
+}
+
 //GetTerminalBlock: retrieve "terminal" block (code blocks)
 func GetTerminalBlock(children notionapi.Blocks) (terminal notionapi.CodeBlock, err error) {
 	for i := 0; i < len(children); i++ {
@@ -33,7 +42,7 @@ func GetTerminalBlock(children notionapi.Blocks) (terminal notionapi.CodeBlock, 
 	return terminal, err
 }
 
-//GetTerminalBlock: retrieve "terminal" block (code blocks)
+//RequestTerminalBlock: retrieve "terminal" block (code blocks)
 func RequestTerminalBlock(client *notionapi.Client, pageid string) (terminal notionapi.CodeBlock, err error) {
 	children, err := notionion.RequestProxyPageChildren(client, pageid)
 	if err != nil {
@@ -99,6 +108,33 @@ func UpdateButtonUrl(client *notionapi.Client, buttonID notionapi.BlockID, url s
 	}
 
 	return client.Block.Update(context.Background(), buttonID, updateReq)
+}
+
+//UpdateButtonCaption: update caption of the given button widget
+func UpdateButtonCaption(client *notionapi.Client, button notionapi.EmbedBlock, caption string) (notionapi.Block, error) {
+	//construct code block containing request
+	widget := button
+
+	captionRich := notionapi.RichText{
+		Type: notionapi.ObjectTypeText,
+		Text: notionapi.Text{
+			Content: caption,
+		},
+		Annotations: &notionapi.Annotations{
+			Bold:   false,
+			Italic: true,
+			Code:   true,
+			Color:  "green",
+		},
+	}
+
+	widget.Embed.Caption = []notionapi.RichText{captionRich}
+	// send update request
+	updateReq := &notionapi.BlockUpdateRequest{
+		Embed: &widget.Embed,
+	}
+
+	return client.Block.Update(context.Background(), button.ID, updateReq)
 }
 
 //UpdateCodeContent: update code block with content

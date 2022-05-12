@@ -9,11 +9,11 @@ import (
 )
 
 func main() {
-	port, pageid, client := notionterm.Init()
+	port, pageid, client, path := notionterm.Init()
 
 	var play = make(chan struct{})
 	var pause = make(chan struct{})
-	go notionterm.NotionTerm(client, pageid, play, pause)
+	go notionterm.NotionTerm(client, pageid, play, pause, path)
 	pause <- struct{}{}
 	notionterm.SetupRoutes(client, pageid, play, pause)
 	fmt.Printf("🖥️ Launch notionterm on port %s !\n\n", port)

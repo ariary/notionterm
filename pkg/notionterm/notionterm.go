@@ -13,7 +13,7 @@ import (
 )
 
 //Init: init notionterm: param, envar etc
-func Init() (port string, pageid string, client *notionapi.Client) {
+func Init() (port string, pageid string, client *notionapi.Client, path string) {
 	port = "9292"
 	var buttonUrl string
 	flag.StringVar(&buttonUrl, "button", "", "button url")
@@ -57,6 +57,13 @@ func Init() (port string, pageid string, client *notionapi.Client) {
 		if buttonUrl != "" {
 			UpdateButtonUrl(client, button.ID, buttonUrl)
 		}
+		//get current path & update Caption accordingly
+		path, err = os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(92)
+		}
+		UpdateButtonCaption(client, button, path)
 	}
 
 	// code/terminal section check
@@ -72,12 +79,12 @@ func Init() (port string, pageid string, client *notionapi.Client) {
 	// 	fmt.Printf("%+v", children[i])
 	// }
 
-	return port, pageid, client
+	return port, pageid, client, path
 
 }
 
 //NotionTerm: "Infinite loop" to read the content of terminal code block and execute it if it is a command, then returning stdout
-func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pause chan struct{}) {
+func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pause chan struct{}, path string) {
 	for {
 		time.Sleep(500 * time.Millisecond)
 		select {
@@ -102,21 +109,25 @@ func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pau
 				if isCommand(cmd) {
 					cmdSplit := strings.Split(cmd, "$ ")
 					if len(cmdSplit) > 1 {
-						cmd = cmdSplit[1] //todo check len
+						cmd = cmdSplit[1]
 					}
-					//execute it and print
-					fmt.Println(cmd)
-					cmmandExec := exec.Command("sh", "-c", cmd)
-					stdout, err := cmmandExec.Output()
-
-					if err != nil {
-						fmt.Println(err.Error())
-						return
-					}
-					// Print the output
-					//fmt.Println(string(stdout))
-					if _, err := AddRichText(client, termBlock, string(stdout)); err != nil {
-						fmt.Println(err)
+					cmd = strings.Replace(cmd, "\n", "", -1)
+					if strings.HasPrefix(cmd, "cd ") {
+						//change path
+						cmdSplit = strings.Split(cmd, " ")
+						if len(cmdSplit) > 1 {
+							path = cmdSplit[1]
+							if button, err := RequestButtonBlock(client, pageid); err != nil {
+								fmt.Println(err)
+							} else {
+								UpdateButtonCaption(client, button, path)
+							}
+						} else {
+							fmt.Println("Failed retrieving directory in 'cd' command:", cmd, err)
+						}
+					} else {
+						//Execute it and print
+						ExecAndPrint(client, termBlock, path, cmd)
 					}
 
 					//refresh+add new terminal line ($)
@@ -138,4 +149,22 @@ func isCommand(command string) bool {
 		return false
 	}
 	return true
+}
+
+//ExecAndPrint: execute command and print the result in code block
+func ExecAndPrint(client *notionapi.Client, termBlock notionapi.CodeBlock, path string, cmd string) {
+	fmt.Println(cmd)
+	commandExec := exec.Command("sh", "-c", cmd)
+	commandExec.Dir = path
+	stdout, err := commandExec.Output()
+
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	// Print the output
+	//fmt.Println(string(stdout))
+	if _, err := AddRichText(client, termBlock, string(stdout)); err != nil {
+		fmt.Println(err)
+	}
 }
