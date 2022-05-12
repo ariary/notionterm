@@ -27,9 +27,9 @@
 <ul>
   <li>Long and robust shell session (see <a href=https://github.com/ariary/tacos>tacos</a> for that)</li>
   <li>Secure remote shell (Logically only person with writing access to the notion page can make rce with but...)</li>
-</ul> 
+</ul>
 
----j
+---
 <div align=left>
 <h3 >Why? 🤔 </h3>
 The focus was on making something fun while still being usable, but that's not meant to be THE solution for reverse shell in the pentester's arsenal
