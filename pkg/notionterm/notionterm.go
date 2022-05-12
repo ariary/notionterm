@@ -125,7 +125,7 @@ func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pau
 						fmt.Println(err)
 						continue
 					}
-					// AddTermLine(client, termBlock)
+					AddTermLine(client, termBlock)
 				}
 			}
 		}
