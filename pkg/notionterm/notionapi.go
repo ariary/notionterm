@@ -162,5 +162,5 @@ func AddRichText(client *notionapi.Client, codeBlock notionapi.CodeBlock, conten
 //AddTermLine: Add rich text with a new line and "$"
 func AddTermLine(client *notionapi.Client, codeBlock notionapi.CodeBlock) (notionapi.Block, error) {
 
-	return AddRichText(client, codeBlock, "\n$")
+	return AddRichText(client, codeBlock, "$")
 }

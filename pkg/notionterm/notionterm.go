@@ -97,7 +97,7 @@ func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pau
 			if err != nil {
 				fmt.Println(err)
 			}
-			fmt.Println("last:", cmd)
+			//fmt.Println("last:", cmd)
 			if strings.Contains(cmd, "\n") && strings.HasPrefix(cmd, "$ ") {
 				if isCommand(cmd) {
 					cmdSplit := strings.Split(cmd, "$ ")
@@ -125,7 +125,7 @@ func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pau
 						fmt.Println(err)
 						continue
 					}
-					AddTermLine(client, termBlock)
+					// AddTermLine(client, termBlock)
 				}
 			}
 		}
