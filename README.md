@@ -36,7 +36,7 @@ The focus was on making something fun while still being usable, but that's not m
 </div>
 <div align=right>
 <h3 >How?  🤷‍♂️</h3>
-Just use notion as usual and launch <code>notionterm</code>.
+Just use notion as usual and launch <code>notionterm</code> on target.
 </div>
 <div align=left>
 <h3 >Requirements 🖊️</h3>
