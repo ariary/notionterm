@@ -9,14 +9,14 @@ import (
 )
 
 func main() {
-	port, pageid, client, path := notionterm.Init()
+	config := notionterm.Init()
 
 	var play = make(chan struct{})
 	var pause = make(chan struct{})
-	go notionterm.NotionTerm(client, pageid, play, pause, path)
+	go notionterm.NotionTerm(config, play, pause)
 	pause <- struct{}{}
-	notionterm.SetupRoutes(client, pageid, play, pause)
-	fmt.Printf("🖥️ Launch notionterm on port %s !\n\n", port)
-	log.Println(http.ListenAndServe(":"+port, nil))
+	notionterm.SetupRoutes(config.Client, config.Pageid, play, pause)
+	fmt.Printf("🖥️ Launch notionterm on port %s !\n\n", config.Port)
+	log.Println(http.ListenAndServe(":"+config.Port, nil))
 
 }

@@ -89,22 +89,6 @@ func UpdateButtonUrl(client *notionapi.Client, buttonID notionapi.BlockID, url s
 	//construct code block containing request
 	widget := notionapi.EmbedBlock{
 		Embed: notionapi.Embed{
-			Caption: []notionapi.RichText{
-				{
-					Type: notionapi.ObjectTypeText,
-					Text: notionapi.Text{
-						Content: "",
-					},
-					Annotations: &notionapi.Annotations{
-						Bold:          false,
-						Italic:        false,
-						Strikethrough: false,
-						Underline:     false,
-						Code:          false,
-						Color:         "",
-					},
-				},
-			},
 			URL: url,
 		},
 	}
@@ -208,13 +192,13 @@ func UpdateCodeContent(client *notionapi.Client, codeBlockID notionapi.BlockID, 
 func AddRichText(client *notionapi.Client, codeBlock notionapi.CodeBlock, content string) (notionapi.Block, error) {
 	rich := codeBlock.Code.RichText
 	var nRich []notionapi.RichText
-	if len(content) < 2000 { //Add multiple chunked richtext
-		chunks := stringslice.ChunksString(content, 1999)
+	if len(content) > 2000 { //Add multiple chunked richtext
+		chunks := stringslice.ChunksString(content, 350)
 		for i := 0; i < len(chunks); i++ {
 			newLine := notionapi.RichText{
 				Type: notionapi.ObjectTypeText,
 				Text: notionapi.Text{
-					Content: content,
+					Content: chunks[i],
 				},
 			}
 			if i == 0 {

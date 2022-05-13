@@ -14,7 +14,9 @@ import (
 )
 
 //Init: init notionterm: param, envar etc
-func Init() (port string, pageid string, client *notionapi.Client, path string) {
+func Init() (config Config) {
+	var buttonUrlOverride, port string
+	flag.StringVar(&buttonUrlOverride, "button-url", "", "override button url (useful if notionterm service is behind a proxy)")
 	flag.StringVar(&port, "p", "", "specify target listening port (HTTP traffic)")
 	flag.Parse()
 
@@ -31,15 +33,15 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 		os.Exit(92)
 	}
 
-	pageid = pageurl[strings.LastIndex(pageurl, "-")+1:]
-	if pageid == pageurl {
+	config.Pageid = pageurl[strings.LastIndex(pageurl, "-")+1:]
+	if config.Pageid == pageurl {
 		fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
 	}
 
 	// CHECK PAGE CONTENT
-	client = notionapi.NewClient(notionapi.Token(token))
+	config.Client = notionapi.NewClient(notionapi.Token(token))
 
-	children, err := notionion.RequestProxyPageChildren(client, pageid)
+	children, err := notionion.RequestProxyPageChildren(config.Client, config.Pageid)
 	if err != nil {
 		fmt.Println("Failed retrieving page children blocks:", err)
 		os.Exit(92)
@@ -51,7 +53,7 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 		targetUrl = flag.Arg(0)
 	} else {
 		//in page
-		targetUrlTmp, _ := RequestTargetUrlFromConfig(client, pageid)
+		targetUrlTmp, _ := RequestTargetUrlFromConfig(config.Client, config.Pageid)
 		// if err != nil {
 		// 	fmt.Println("Failed to retrieve target URL from notion page:", err)
 		// }
@@ -72,19 +74,23 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 
 	// port config
 	if port == "" {
-		if port, _ = RequestPortFromConfig(client, pageid); port == "" {
+		if port, _ = RequestPortFromConfig(config.Client, config.Pageid); port == "" {
 			port = "9292"
 		}
 	}
+	config.Port = port
 
 	// embed button section checks
 	var buttonUrl string
 	if targetUrl == "" {
 		fmt.Println("❌ Failed to get target URL/IP")
 		os.Exit(92)
-	} else {
+	} else if buttonUrlOverride == "" {
 		fmt.Println("📡 Target:", targetUrl)
 		buttonUrl = "https://" + targetUrl + ":" + port + "/button"
+	} else {
+		fmt.Println("📡 Target button url:", buttonUrlOverride)
+		buttonUrl = buttonUrlOverride
 	}
 	if button, err := GetButtonBlock(children); err != nil {
 		fmt.Println("❌ button not found in the notionterm page")
@@ -92,18 +98,18 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 	} else {
 		fmt.Println("🕹️ button widget found")
 		if buttonUrl != "" {
-			if _, err := UpdateButtonUrl(client, button.ID, buttonUrl); err != nil {
-				fmt.Println("Failed updating buttin url:", err)
+			if _, err := UpdateButtonUrl(config.Client, button.ID, buttonUrl); err != nil {
+				fmt.Println("Failed updating button url:", err)
 				os.Exit(92)
 			}
 		}
 		//get current path & update Caption accordingly
-		path, err = os.Getwd()
+		config.Path, err = os.Getwd()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(92)
 		}
-		UpdateButtonCaption(client, button, "toto")
+		UpdateButtonCaption(config.Client, button, config.Path)
 	}
 
 	// code/terminal section check
@@ -112,21 +118,24 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 		os.Exit(92)
 	} else {
 		fmt.Println("👨‍💻 terminal block found")
-		UpdateCodeContent(client, code.ID, "$ ")
+		UpdateCodeContent(config.Client, code.ID, "$ ")
 	}
 
 	// for i := 0; i < len(children); i++ {
 	// 	fmt.Printf("%+v", children[i])
 	// }
 
-	return port, pageid, client, path
+	config.PS1 = "$ "
+	config.Delay = 500 * time.Millisecond
+
+	return config
 
 }
 
 //NotionTerm: "Infinite loop" to read the content of terminal code block and execute it if it is a command, then returning stdout
-func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pause chan struct{}, path string) {
+func NotionTerm(config Config, play chan struct{}, pause chan struct{}) {
 	for {
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(config.Delay)
 		select {
 		case <-pause:
 			//fmt.Println("pause")
@@ -135,7 +144,7 @@ func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pau
 				//fmt.Println("play")
 			}
 		default:
-			termBlock, err := RequestTerminalBlock(client, pageid)
+			termBlock, err := RequestTerminalBlock(config.Client, config.Pageid)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -152,31 +161,18 @@ func NotionTerm(client *notionapi.Client, pageid string, play chan struct{}, pau
 						cmd = cmdSplit[1]
 					}
 					cmd = strings.Replace(cmd, "\n", "", -1)
-					if strings.HasPrefix(cmd, "cd ") {
-						//change path
-						cmdSplit = strings.Split(cmd, " ")
-						if len(cmdSplit) > 1 {
-							path = cmdSplit[1]
-							if button, err := RequestButtonBlock(client, pageid); err != nil {
-								fmt.Println(err)
-							} else {
-								UpdateButtonCaption(client, button, path)
-							}
-						} else {
-							fmt.Println("Failed retrieving directory in 'cd' command:", cmd, err)
-						}
-					} else {
+					if !handleSpecialCommand(&config, termBlock, cmd) {
 						//Execute it and print
-						ExecAndPrint(client, termBlock, path, cmd)
+						ExecAndPrint(config.Client, termBlock, config.Path, cmd)
 					}
 
 					//refresh+add new terminal line ($)
-					termBlock, err = RequestTerminalBlock(client, pageid)
+					termBlock, err = RequestTerminalBlock(config.Client, config.Pageid)
 					if err != nil {
 						fmt.Println(err)
 						continue
 					}
-					AddTermLine(client, termBlock)
+					AddTermLine(config.Client, termBlock)
 				}
 			}
 		}
@@ -191,12 +187,38 @@ func isCommand(command string) bool {
 	return true
 }
 
+func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd string) (isSpecial bool) {
+
+	if strings.HasPrefix(cmd, "cd ") { //TODO handle if beginnign with .. to mak ethe path absolute for caption
+		//change path
+		cmdSplit := strings.Split(cmd, " ")
+		if len(cmdSplit) > 1 {
+			path := cmdSplit[1]
+			if button, err := RequestButtonBlock(config.Client, config.Pageid); err != nil {
+				fmt.Println(err)
+			} else {
+				UpdateButtonCaption(config.Client, button, path)
+				config.Path = path
+				fmt.Println("📁 Change directory:", path)
+			}
+			return true
+		} else {
+			fmt.Println("Failed retrieving directory in 'cd' command:", cmd)
+		}
+	} else if strings.HasPrefix(cmd, "clear") {
+		fmt.Println("🦆 Clear terminal")
+		UpdateCodeContent(config.Client, termBlock.ID, "")
+		return true
+	}
+	return false
+}
+
 //ExecAndPrint: execute command and print the result in code block
 func ExecAndPrint(client *notionapi.Client, termBlock notionapi.CodeBlock, path string, cmd string) {
-	fmt.Println(cmd)
+	fmt.Println("📟", cmd)
 	commandExec := exec.Command("sh", "-c", cmd)
 	commandExec.Dir = path
-	stdout, err := commandExec.Output()
+	stdout, err := commandExec.CombinedOutput()
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -205,6 +227,6 @@ func ExecAndPrint(client *notionapi.Client, termBlock notionapi.CodeBlock, path 
 	// Print the output
 	//fmt.Println(string(stdout))
 	if _, err := AddRichText(client, termBlock, string(stdout)); err != nil {
-		fmt.Println(err)
+		fmt.Println("failed to add rich text in terminal code block:", err)
 	}
 }
