@@ -209,7 +209,7 @@ func GetTableBlock(children notionapi.Blocks) (table notionapi.TableBlock, err e
 			return table, nil
 		}
 	}
-	err = fmt.Errorf("Failed retrieving table block")
+	err = fmt.Errorf("failed retrieving table block")
 	return table, err
 }
 
@@ -222,16 +222,96 @@ func RequestTableBlock(client *notionapi.Client, pageid string) (table notionapi
 	return GetTableBlock(children)
 }
 
-func RequestTargetUrl(client *notionapi.Client, pageid string) (targetUrl string, err error) {
+//GetTableRowBlock: retrieve table row block
+func GetTableRowBlock(children notionapi.Blocks) (tableRow notionapi.TableRowBlock, err error) {
+	for i := 0; i < len(children); i++ {
+		if children[i].GetType() == notionapi.BlockTypeTableRowBlock {
+			tableRow = *children[i].(*notionapi.TableRowBlock)
+			return tableRow, nil
+		}
+	}
+	err = fmt.Errorf("failed retrieving table row block")
+	return tableRow, err
+}
+
+//RequestTableRowBlock: retrieve table row block by requetsing it
+func RequestTableRowBlock(client *notionapi.Client, pageid string) (tableRow notionapi.TableRowBlock, err error) {
 
 	tableBlock, err := RequestTableBlock(client, pageid)
 	if err != nil {
+		return tableRow, err
+	}
+
+	tableBlockChildren, err := client.Block.GetChildren(context.Background(), tableBlock.ID, nil)
+	if err != nil {
+		return tableRow, err
+	}
+
+	return GetTableRowBlock(tableBlockChildren.Results)
+}
+
+//GetTableRowBlockbyHeader: retrieve table row block providing its header value
+func GetTableRowBlockbyHeader(children notionapi.Blocks, header string) (tableRow notionapi.TableRowBlock, err error) {
+	for i := 0; i < len(children); i++ {
+		if children[i].GetType() == notionapi.BlockTypeTableRowBlock {
+			tableRowTmp := *children[i].(*notionapi.TableRowBlock)
+			if len(tableRowTmp.TableRow.Cells) < 0 {
+				continue
+			}
+			if tableRowTmp.TableRow.Cells[0][0].Text.Content == header {
+				return tableRowTmp, nil
+			}
+		}
+	}
+	err = fmt.Errorf("Failed retrieving table row block")
+	return tableRow, err
+}
+
+//RequestTableRowBlock: retrieve table row block providing its header valueby requetsing it
+func RequestTableRowBlockByHeader(client *notionapi.Client, pageid string, header string) (tableRow notionapi.TableRowBlock, err error) {
+
+	tableBlock, err := RequestTableBlock(client, pageid)
+	if err != nil {
+		return tableRow, err
+	}
+
+	tableBlockChildren, err := client.Block.GetChildren(context.Background(), tableBlock.ID, nil)
+	if err != nil {
+		return tableRow, err
+	}
+
+	return GetTableRowBlockbyHeader(tableBlockChildren.Results, header)
+}
+
+func RequestRowValueByHeader(client *notionapi.Client, pageid string, header string) (result string, err error) {
+	tableRow, err := RequestTableRowBlockByHeader(client, pageid, header)
+	if err != nil {
 		return "", err
 	}
-	table := tableBlock.Table
-	// fmt.Printf("%+v", tableBlock.BasicBlock.)
-	for i := 0; i < len(table.Children); i++ {
-		fmt.Println(table.Children[i])
+	if len(tableRow.TableRow.Cells) < 2 {
+		err = fmt.Errorf("failed retrieving value in table row (seems that the row does not have more than 1 columns)")
+		return "", err
+	} else if len(tableRow.TableRow.Cells[1]) < 1 {
+		err = fmt.Errorf("failed retrieving value in table row (seems that the value is empty)")
+		return "", err
 	}
-	return "", nil
+	result = tableRow.TableRow.Cells[1][0].Text.Content
+	return result, err
+}
+
+func RequestTargetUrl(client *notionapi.Client, pageid string) (targetUrl string, err error) {
+
+	// tableRow, err := RequestTableRowBlock(client, pageid)
+	// if err != nil {
+	// 	return "", err
+	// }
+	// // fmt.Printf("%+v", tableRow)
+	// t := tableRow.TableRow.Cells[1][0]
+	// fmt.Println(t.Text.Content)
+
+	// // for i := 0; i < len(tableRow.TableRow.Cells); i++ {
+	// // 	fmt.Println(i)
+	// // 	fmt.Printf("%+v", tableRow.TableRow.Cells[i])
+	// // }
+	return RequestRowValueByHeader(client, pageid, "Target")
 }

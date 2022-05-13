@@ -56,9 +56,9 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 	} else {
 		//in page
 		targetUrlTmp, err := RequestTargetUrl(client, pageid)
-		if err != nil {
-			fmt.Println("Failed to retrieve target URL from notion page:", err)
-		}
+		// if err != nil {
+		// 	fmt.Println("Failed to retrieve target URL from notion page:", err)
+		// }
 		if targetUrlTmp == "" {
 			//try to find it
 			targetUrlTmp, err = host.GetExternalIP()
