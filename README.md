@@ -42,7 +42,7 @@ Just use notion as usual and launch <code>notionterm</code> on target.
 <h3 >Requirements 🖊️</h3>
  <ul>
   <li>Notion software and API key</li>
-  <li>Allowed bidirectionnal HTTP communication between  a target and notion domain</li>
+  <li>Allowed bidirectionnal HTTP communication between the target and notion domain</li>
   <li>Prior RCE on target</li>
 </ul> 
 </div>
