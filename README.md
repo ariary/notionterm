@@ -69,8 +69,12 @@ roughly inspired by the great idea of <a href="https://github.com/mttaggart/Offe
 
 ```shell
 # On target with prior RCE
-./notionterm --button=https://[TARGET_REACHABLE_IP]/button
+./notionterm
 ```
+
+Configuration can be made using:
+- Flags
+- Configuration table in notion page
 
 
 ## Install
