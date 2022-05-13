@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	stringslice "github.com/ariary/go-utils/pkg/stringSlice"
 	"github.com/ariary/notionion/pkg/notionion"
 	"github.com/jomei/notionapi"
 )
@@ -206,13 +207,32 @@ func UpdateCodeContent(client *notionapi.Client, codeBlockID notionapi.BlockID, 
 //AddRichText: Add rich text in code
 func AddRichText(client *notionapi.Client, codeBlock notionapi.CodeBlock, content string) (notionapi.Block, error) {
 	rich := codeBlock.Code.RichText
-	newLine := notionapi.RichText{
-		Type: notionapi.ObjectTypeText,
-		Text: notionapi.Text{
-			Content: content,
-		},
+	var nRich []notionapi.RichText
+	if len(content) < 2000 { //Add multiple chunked richtext
+		chunks := stringslice.ChunksString(content, 1999)
+		for i := 0; i < len(chunks); i++ {
+			newLine := notionapi.RichText{
+				Type: notionapi.ObjectTypeText,
+				Text: notionapi.Text{
+					Content: content,
+				},
+			}
+			if i == 0 {
+				nRich = append(rich, newLine)
+			} else {
+				nRich = append(nRich, newLine)
+			}
+		}
+	} else {
+		newLine := notionapi.RichText{
+			Type: notionapi.ObjectTypeText,
+			Text: notionapi.Text{
+				Content: content,
+			},
+		}
+		nRich = append(rich, newLine)
 	}
-	nRich := append(rich, newLine)
+
 	//construct code block containing request
 	code := notionapi.CodeBlock{
 		Code: notionapi.Code{

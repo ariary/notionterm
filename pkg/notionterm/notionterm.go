@@ -69,14 +69,6 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 		}
 		targetUrl = targetUrlTmp
 	}
-	var buttonUrl string
-	if targetUrl == "" {
-		fmt.Println("❌ Failed to get target URL/IP")
-		os.Exit(92)
-	} else {
-		fmt.Println("📡 Target:", targetUrl)
-		buttonUrl = "https://" + targetUrl + "/button"
-	}
 
 	// port config
 	if port == "" {
@@ -86,13 +78,24 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 	}
 
 	// embed button section checks
+	var buttonUrl string
+	if targetUrl == "" {
+		fmt.Println("❌ Failed to get target URL/IP")
+		os.Exit(92)
+	} else {
+		fmt.Println("📡 Target:", targetUrl)
+		buttonUrl = "https://" + targetUrl + ":" + port + "/button"
+	}
 	if button, err := GetButtonBlock(children); err != nil {
 		fmt.Println("❌ button not found in the notionterm page")
 		os.Exit(92)
 	} else {
 		fmt.Println("🕹️ button widget found")
 		if buttonUrl != "" {
-			UpdateButtonUrl(client, button.ID, buttonUrl)
+			if _, err := UpdateButtonUrl(client, button.ID, buttonUrl); err != nil {
+				fmt.Println("Failed updating buttin url:", err)
+				os.Exit(92)
+			}
 		}
 		//get current path & update Caption accordingly
 		path, err = os.Getwd()
@@ -100,7 +103,7 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 			fmt.Println(err)
 			os.Exit(92)
 		}
-		UpdateButtonCaption(client, button, path)
+		UpdateButtonCaption(client, button, "toto")
 	}
 
 	// code/terminal section check
