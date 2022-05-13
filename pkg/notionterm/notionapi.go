@@ -200,3 +200,38 @@ func AddTermLine(client *notionapi.Client, codeBlock notionapi.CodeBlock) (notio
 
 	return AddRichText(client, codeBlock, "$")
 }
+
+//GetTableBlock: retrieve table block
+func GetTableBlock(children notionapi.Blocks) (table notionapi.TableBlock, err error) {
+	for i := 0; i < len(children); i++ {
+		if children[i].GetType() == notionapi.BlockTypeTableBlock {
+			table = *children[i].(*notionapi.TableBlock)
+			return table, nil
+		}
+	}
+	err = fmt.Errorf("Failed retrieving table block")
+	return table, err
+}
+
+//RequestTableBlock: retrieve table block by requetsing it
+func RequestTableBlock(client *notionapi.Client, pageid string) (table notionapi.TableBlock, err error) {
+	children, err := notionion.RequestProxyPageChildren(client, pageid)
+	if err != nil {
+		return table, err
+	}
+	return GetTableBlock(children)
+}
+
+func RequestTargetUrl(client *notionapi.Client, pageid string) (targetUrl string, err error) {
+
+	tableBlock, err := RequestTableBlock(client, pageid)
+	if err != nil {
+		return "", err
+	}
+	table := tableBlock.Table
+	// fmt.Printf("%+v", tableBlock.BasicBlock.)
+	for i := 0; i < len(table.Children); i++ {
+		fmt.Println(table.Children[i])
+	}
+	return "", nil
+}

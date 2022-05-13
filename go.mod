@@ -3,7 +3,7 @@ module github.com/ariary/notionterm
 go 1.17
 
 require (
-	github.com/ariary/go-utils v1.0.13
+	github.com/ariary/go-utils v1.0.14
 	github.com/ariary/notionion v0.0.2
 	github.com/jomei/notionapi v1.8.3
 )

@@ -8,19 +8,20 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ariary/go-utils/pkg/host"
 	"github.com/ariary/notionion/pkg/notionion"
 	"github.com/jomei/notionapi"
 )
 
 //Init: init notionterm: param, envar etc
 func Init() (port string, pageid string, client *notionapi.Client, path string) {
-	port = "9292"
-	var buttonUrl string
-	flag.StringVar(&buttonUrl, "button", "", "button url")
+	flag.StringVar(&port, "p", "", "specify target listening port (HTTP traffic)")
 	flag.Parse()
-	if len(flag.Args()) > 0 {
-		port = flag.Arg(0)
+
+	if port == "" {
+		port = "9292"
 	}
+
 	// integration token
 	token := os.Getenv("NOTION_TOKEN")
 	if token == "" {
@@ -46,6 +47,39 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 	if err != nil {
 		fmt.Println("Failed retrieving page children blocks:", err)
 		os.Exit(92)
+	}
+
+	//targetUrl: find target reachable url (neither in args or in page otherwise try to find it)
+	var targetUrl string
+	if len(flag.Args()) > 0 { //in args
+		targetUrl = flag.Arg(0)
+	} else {
+		//in page
+		targetUrlTmp, err := RequestTargetUrl(client, pageid)
+		if err != nil {
+			fmt.Println("Failed to retrieve target URL from notion page:", err)
+		}
+		if targetUrlTmp == "" {
+			//try to find it
+			targetUrlTmp, err = host.GetExternalIP()
+			if err != nil {
+				fmt.Println("Failed to detect external ip (dig):", err)
+			} else if targetUrlTmp == "" {
+				targetUrlTmp, err = host.GetHostIP()
+				if err != nil {
+					fmt.Println("Failed to detect external ip (hostname):", err)
+				}
+			}
+		}
+		targetUrl = targetUrlTmp
+	}
+	var buttonUrl string
+	if targetUrl == "" {
+		fmt.Println("❌ Failed to get target URL/IP")
+		os.Exit(92)
+	} else {
+		fmt.Println("📡 Target:", targetUrl)
+		buttonUrl = "https://" + targetUrl + "/button"
 	}
 
 	// embed button section checks
