@@ -25,7 +25,7 @@
 <div align=left>
 <h3>NOT FOR ➖:</h3>
 <ul>
-  <li>Long and robust shell session (see <a href=https://github.com/ariary/tacos>tacos</a> for that)</li>
+  <li>Long and interactive shell session (see <a href=https://github.com/ariary/tacos>tacos</a> for that)</li>
   <li>Secure remote shell (Logically only person with writing access to the notion page can make rce with but...)</li>
 </ul>
 
