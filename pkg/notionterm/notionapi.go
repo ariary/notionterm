@@ -3,10 +3,16 @@ package notionterm
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/ariary/notionion/pkg/notionion"
 	"github.com/jomei/notionapi"
 )
+
+const CONFIGURATION string = "Configuration"
+const TERMINAL string = "Terminal"
+const TARGET = "Target"
+const PORT = "Port"
 
 //GetButtonBlock: retrieve "button" block (embed blocks)
 func GetButtonBlock(children notionapi.Blocks) (button notionapi.EmbedBlock, err error) {
@@ -137,6 +143,33 @@ func UpdateButtonCaption(client *notionapi.Client, button notionapi.EmbedBlock, 
 	return client.Block.Update(context.Background(), button.ID, updateReq)
 }
 
+//UpdateCodeCaption: update caption of the given code block
+// func UpdateCodeCaption(client *notionapi.Client, code notionapi.CodeBlock, caption string) (notionapi.Block, error) {
+// 	//construct code block containing request
+// 	terminal := code
+
+// 	captionRich := notionapi.RichText{
+// 		Type: notionapi.ObjectTypeText,
+// 		Text: notionapi.Text{
+// 			Content: caption,
+// 		},
+// 		Annotations: &notionapi.Annotations{
+// 			Bold:   false,
+// 			Italic: true,
+// 			Code:   true,
+// 			Color:  "green",
+// 		},
+// 	}
+
+// 	terminal.Code.RichText.Caption = []notionapi.RichText{captionRich}
+// 	// send update request
+// 	updateReq := &notionapi.BlockUpdateRequest{
+// 		Code: &terminal.Code,
+// 	}
+
+// 	return client.Block.Update(context.Background(), code.ID, updateReq)
+// }
+
 //UpdateCodeContent: update code block with content
 func UpdateCodeContent(client *notionapi.Client, codeBlockID notionapi.BlockID, content string) (notionapi.Block, error) {
 	//construct code block containing request
@@ -226,8 +259,13 @@ func RequestTableBlock(client *notionapi.Client, pageid string) (table notionapi
 func GetTableRowBlock(children notionapi.Blocks) (tableRow notionapi.TableRowBlock, err error) {
 	for i := 0; i < len(children); i++ {
 		if children[i].GetType() == notionapi.BlockTypeTableRowBlock {
-			tableRow = *children[i].(*notionapi.TableRowBlock)
-			return tableRow, nil
+			if i > 0 && children[i-1].GetType() == notionapi.BlockTypeHeading3 {
+				heading := *children[i-1].(*notionapi.Heading3Block)
+				if strings.Contains(heading.Heading3.RichText[0].Text.Content, CONFIGURATION) {
+					tableRow = *children[i].(*notionapi.TableRowBlock)
+					return tableRow, nil
+				}
+			}
 		}
 	}
 	err = fmt.Errorf("failed retrieving table row block")
@@ -255,12 +293,15 @@ func GetTableRowBlockbyHeader(children notionapi.Blocks, header string) (tableRo
 	for i := 0; i < len(children); i++ {
 		if children[i].GetType() == notionapi.BlockTypeTableRowBlock {
 			tableRowTmp := *children[i].(*notionapi.TableRowBlock)
+			//check config is above
+
 			if len(tableRowTmp.TableRow.Cells) < 0 {
 				continue
 			}
 			if tableRowTmp.TableRow.Cells[0][0].Text.Content == header {
 				return tableRowTmp, nil
 			}
+
 		}
 	}
 	err = fmt.Errorf("Failed retrieving table row block")
@@ -299,19 +340,13 @@ func RequestRowValueByHeader(client *notionapi.Client, pageid string, header str
 	return result, err
 }
 
-func RequestTargetUrl(client *notionapi.Client, pageid string) (targetUrl string, err error) {
+//RequestTargetUrlFromConfig: return the value of the cell specifying the target urll/ip
+func RequestTargetUrlFromConfig(client *notionapi.Client, pageid string) (targetUrl string, err error) {
+	return RequestRowValueByHeader(client, pageid, TARGET)
+}
 
-	// tableRow, err := RequestTableRowBlock(client, pageid)
-	// if err != nil {
-	// 	return "", err
-	// }
-	// // fmt.Printf("%+v", tableRow)
-	// t := tableRow.TableRow.Cells[1][0]
-	// fmt.Println(t.Text.Content)
+//RequestTargetUrl: return the value of the cell specifying the target urll/ip
+func RequestPortFromConfig(client *notionapi.Client, pageid string) (port string, err error) {
 
-	// // for i := 0; i < len(tableRow.TableRow.Cells); i++ {
-	// // 	fmt.Println(i)
-	// // 	fmt.Printf("%+v", tableRow.TableRow.Cells[i])
-	// // }
-	return RequestRowValueByHeader(client, pageid, "Target")
+	return RequestRowValueByHeader(client, pageid, PORT)
 }

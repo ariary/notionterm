@@ -18,10 +18,6 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 	flag.StringVar(&port, "p", "", "specify target listening port (HTTP traffic)")
 	flag.Parse()
 
-	if port == "" {
-		port = "9292"
-	}
-
 	// integration token
 	token := os.Getenv("NOTION_TOKEN")
 	if token == "" {
@@ -48,14 +44,14 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 		fmt.Println("Failed retrieving page children blocks:", err)
 		os.Exit(92)
 	}
-
+	// target  config
 	//targetUrl: find target reachable url (neither in args or in page otherwise try to find it)
 	var targetUrl string
 	if len(flag.Args()) > 0 { //in args
 		targetUrl = flag.Arg(0)
 	} else {
 		//in page
-		targetUrlTmp, err := RequestTargetUrl(client, pageid)
+		targetUrlTmp, _ := RequestTargetUrlFromConfig(client, pageid)
 		// if err != nil {
 		// 	fmt.Println("Failed to retrieve target URL from notion page:", err)
 		// }
@@ -80,6 +76,13 @@ func Init() (port string, pageid string, client *notionapi.Client, path string) 
 	} else {
 		fmt.Println("📡 Target:", targetUrl)
 		buttonUrl = "https://" + targetUrl + "/button"
+	}
+
+	// port config
+	if port == "" {
+		if port, _ = RequestPortFromConfig(client, pageid); port == "" {
+			port = "9292"
+		}
 	}
 
 	// embed button section checks
