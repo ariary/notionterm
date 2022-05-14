@@ -26,7 +26,7 @@
 <h3>NOT FOR ➖:</h3>
 <ul>
   <li>Long and interactive shell session (see <a href=https://github.com/ariary/tacos>tacos</a> for that)</li>
-  <li>Secure remote shell (Logically only person with writing access to the notion page can make rce with but...)</li>
+  <li>Approved secure remote shell (Although it is encrypted and kind of authenticated)</li>
 </ul>
 
 ---
