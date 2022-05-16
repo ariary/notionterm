@@ -20,13 +20,14 @@
   <li>Demo</li>
   <li>Quick proof insertion within report</li>
   <li>High available and shareable reverse shell (desktop, browser, mobile)</li>
+  <li>Encrypted and authenticated remote shell</li>
+
 </ul> 
 </div>
 <div align=left>
 <h3>NOT FOR ➖:</h3>
 <ul>
   <li>Long and interactive shell session (see <a href=https://github.com/ariary/tacos>tacos</a> for that)</li>
-  <li>Approved secure remote shell (Although it is encrypted and kind of authenticated)</li>
 </ul>
 
 ---
