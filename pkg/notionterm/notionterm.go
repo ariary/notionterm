@@ -15,7 +15,7 @@ import (
 )
 
 //Init: init notionterm: param, envar etc
-func Init() (config Config) {
+func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	var buttonUrlOverride, portFlag, token, pageurl string
 	flag.StringVar(&buttonUrlOverride, "button-url", "", "override button url (useful if notionterm service is behind a proxy)")
 	flag.StringVar(&portFlag, "p", "", "specify target listening port (HTTP traffic)")
@@ -105,7 +105,6 @@ func Init() (config Config) {
 	}
 
 	// embed button section checks
-	var buttonUrl string
 	if targetUrl == "" {
 		fmt.Println("❌ Failed to get target URL/IP")
 		os.Exit(92)
@@ -116,17 +115,19 @@ func Init() (config Config) {
 		fmt.Println("📡 Target button url:", buttonUrlOverride)
 		buttonUrl = buttonUrlOverride
 	}
-	if button, err := GetButtonBlock(children); err != nil {
+	button, err := GetButtonBlock(children)
+	if err != nil {
 		fmt.Println("❌ button not found in the notionterm page")
 		os.Exit(92)
 	} else {
 		fmt.Println("🕹️ button widget found")
-		if buttonUrl != "" {
-			if _, err := UpdateButtonUrl(config.Client, button.ID, buttonUrl); err != nil {
-				fmt.Println("Failed updating button url:", err)
-				os.Exit(92)
-			}
-		}
+		// //USELESS UNTIL WORKAROUND TO LOAD EMBED LINK IS WITHDRAWN
+		// if buttonUrl != "" {
+		// 	if _, err := UpdateButtonUrl(config.Client, button.ID, buttonUrl); err != nil {
+		// 		fmt.Println("Failed updating button url:", err)
+		// 		os.Exit(92)
+		// 	}
+		// }
 		//get current path & update Caption accordingly
 		config.Path, err = os.Getwd()
 		if err != nil {
@@ -148,7 +149,7 @@ func Init() (config Config) {
 
 	config.Delay = 500 * time.Millisecond
 
-	return config
+	return config, button.ID, buttonUrl
 
 }
 
