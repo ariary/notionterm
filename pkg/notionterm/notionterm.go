@@ -1,6 +1,7 @@
 package notionterm
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -15,9 +16,9 @@ import (
 
 //Init: init notionterm: param, envar etc
 func Init() (config Config) {
-	var buttonUrlOverride, port, token, pageurl string
+	var buttonUrlOverride, portFlag, token, pageurl string
 	flag.StringVar(&buttonUrlOverride, "button-url", "", "override button url (useful if notionterm service is behind a proxy)")
-	flag.StringVar(&port, "p", "", "specify target listening port (HTTP traffic)")
+	flag.StringVar(&portFlag, "p", "", "specify target listening port (HTTP traffic)")
 	flag.StringVar(&token, "token", "", "specify notion integration/API token")
 	flag.StringVar(&pageurl, "page", "", "notionterm URL")
 	flag.StringVar(&config.Shell, "shell", "sh", "shell runtime (\"sh,bash and cmd.exe\")")
@@ -40,19 +41,26 @@ func Init() (config Config) {
 		}
 	}
 
-	config.Pageid = pageurl[strings.LastIndex(pageurl, "-")+1:]
-	if config.Pageid == pageurl {
+	config.PageID = pageurl[strings.LastIndex(pageurl, "-")+1:]
+	if config.PageID == pageurl {
 		fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
 	}
 
 	// CHECK PAGE CONTENT
 	config.Client = notionapi.NewClient(notionapi.Token(token))
 
-	children, err := notionion.RequestProxyPageChildren(config.Client, config.Pageid)
+	children, err := notionion.RequestProxyPageChildren(config.Client, config.PageID)
 	if err != nil {
 		fmt.Println("Failed retrieving page children blocks:", err)
 		os.Exit(92)
 	}
+	configTable, err := RequestTableBlock(config.Client, config.PageID)
+	if err != nil {
+		fmt.Println("Failed retrieving config table blocks:", err)
+		os.Exit(92)
+	}
+	tableBlockChildren, err := config.Client.Block.GetChildren(context.Background(), configTable.ID, nil)
+
 	// target  config
 	//targetUrl: find target reachable url (neither in args or in page otherwise try to find it)
 	var targetUrl string
@@ -60,7 +68,8 @@ func Init() (config Config) {
 		targetUrl = flag.Arg(0)
 	} else {
 		//in page
-		targetUrlTmp, _ := RequestTargetUrlFromConfig(config.Client, config.Pageid)
+		targetUrlTmp, _ := GetTargetUrlFromConfig(tableBlockChildren.Results)
+		// targetUrlTmp, _ := RequestTargetUrlFromConfig(config.Client, config.PageID)
 		// if err != nil {
 		// 	fmt.Println("Failed to retrieve target URL from notion page:", err)
 		// }
@@ -80,12 +89,20 @@ func Init() (config Config) {
 	}
 
 	// port config
-	if port == "" {
-		if port, err = RequestPortFromConfig(config.Client, config.Pageid); port == "" && err != nil {
-			port = "9292"
+	if portFlag == "" {
+		if portFromPage, err := GetPortFromConfig(tableBlockChildren.Results); portFromPage == "" || err != nil {
+			config.Port = "9292"
+		} else {
+			config.Port = portFromPage
 		}
+	} else {
+		config.Port = portFlag
 	}
-	config.Port = port
+
+	//Shell runtime checks
+	if shell, err := GetShellFromConfig(tableBlockChildren.Results); shell != "" && err != nil {
+		config.Shell = shell
+	}
 
 	// embed button section checks
 	var buttonUrl string
@@ -94,7 +111,7 @@ func Init() (config Config) {
 		os.Exit(92)
 	} else if buttonUrlOverride == "" {
 		fmt.Println("📡 Target:", targetUrl)
-		buttonUrl = "https://" + targetUrl + ":" + port + "/button"
+		buttonUrl = "https://" + targetUrl + ":" + config.Port + "/button"
 	} else {
 		fmt.Println("📡 Target button url:", buttonUrlOverride)
 		buttonUrl = buttonUrlOverride
@@ -131,11 +148,6 @@ func Init() (config Config) {
 
 	config.Delay = 500 * time.Millisecond
 
-	//Shell runtime checks
-	// if shell, _ := RequestShellFromConfig(config.Client, config.Pageid); shell != "" {
-	// 	config.Shell = shell
-	// }
-
 	return config
 
 }
@@ -152,7 +164,7 @@ func NotionTerm(config Config, play chan struct{}, pause chan struct{}) {
 				//fmt.Println("play")
 			}
 		default:
-			termBlock, err := RequestTerminalBlock(config.Client, config.Pageid)
+			termBlock, err := RequestTerminalBlock(config.Client, config.PageID)
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -175,12 +187,12 @@ func NotionTerm(config Config, play chan struct{}, pause chan struct{}) {
 					}
 
 					//refresh+add new terminal line ($)
-					termBlock, err = RequestTerminalBlock(config.Client, config.Pageid)
+					termBlock, err = RequestTerminalBlock(config.Client, config.PageID)
 					if err != nil {
 						fmt.Println(err)
 						continue
 					}
-					AddTermLine(config.Client, termBlock)
+					AddTermLine(&config, termBlock)
 				}
 			}
 		}
@@ -202,7 +214,7 @@ func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd str
 		cmdSplit := strings.Split(cmd, " ")
 		if len(cmdSplit) > 1 {
 			path := cmdSplit[1]
-			if button, err := RequestButtonBlock(config.Client, config.Pageid); err != nil {
+			if button, err := RequestButtonBlock(config.Client, config.PageID); err != nil {
 				fmt.Println(err)
 			} else {
 				UpdateButtonCaption(config.Client, button, path)

@@ -10,7 +10,7 @@ type Config struct {
 	Delay  time.Duration
 	Client *notionapi.Client
 	Port   string
-	Pageid string
+	PageID string
 	Path   string
 	PS1    string
 	Shell  string

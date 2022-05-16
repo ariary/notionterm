@@ -3,7 +3,6 @@ package notionterm
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	stringslice "github.com/ariary/go-utils/pkg/stringSlice"
 	"github.com/ariary/notionion/pkg/notionion"
@@ -14,6 +13,7 @@ const CONFIGURATION string = "Configuration"
 const TERMINAL string = "Terminal"
 const TARGET = "Target"
 const PORT = "Port"
+const SHELL = "Shell"
 
 //GetButtonBlock: retrieve "button" block (embed blocks)
 func GetButtonBlock(children notionapi.Blocks) (button notionapi.EmbedBlock, err error) {
@@ -233,9 +233,9 @@ func AddRichText(client *notionapi.Client, codeBlock notionapi.CodeBlock, conten
 }
 
 //AddTermLine: Add rich text with a new line and "$"
-func AddTermLine(client *notionapi.Client, codeBlock notionapi.CodeBlock) (notionapi.Block, error) {
+func AddTermLine(config *Config, codeBlock notionapi.CodeBlock) (notionapi.Block, error) {
 
-	return AddRichText(client, codeBlock, "$")
+	return AddRichText(config.Client, codeBlock, config.PS1)
 }
 
 //GetTableBlock: retrieve table block
@@ -257,39 +257,6 @@ func RequestTableBlock(client *notionapi.Client, pageid string) (table notionapi
 		return table, err
 	}
 	return GetTableBlock(children)
-}
-
-//GetTableRowBlock: retrieve table row block
-func GetTableRowBlock(children notionapi.Blocks) (tableRow notionapi.TableRowBlock, err error) {
-	for i := 0; i < len(children); i++ {
-		if children[i].GetType() == notionapi.BlockTypeTableRowBlock {
-			if i > 0 && children[i-1].GetType() == notionapi.BlockTypeHeading3 {
-				heading := *children[i-1].(*notionapi.Heading3Block)
-				if strings.Contains(heading.Heading3.RichText[0].Text.Content, CONFIGURATION) {
-					tableRow = *children[i].(*notionapi.TableRowBlock)
-					return tableRow, nil
-				}
-			}
-		}
-	}
-	err = fmt.Errorf("failed retrieving table row block")
-	return tableRow, err
-}
-
-//RequestTableRowBlock: retrieve table row block by requetsing it
-func RequestTableRowBlock(client *notionapi.Client, pageid string) (tableRow notionapi.TableRowBlock, err error) {
-
-	tableBlock, err := RequestTableBlock(client, pageid)
-	if err != nil {
-		return tableRow, err
-	}
-
-	tableBlockChildren, err := client.Block.GetChildren(context.Background(), tableBlock.ID, nil)
-	if err != nil {
-		return tableRow, err
-	}
-
-	return GetTableRowBlock(tableBlockChildren.Results)
 }
 
 //GetTableRowBlockbyHeader: retrieve table row block providing its header value
@@ -328,11 +295,8 @@ func RequestTableRowBlockByHeader(client *notionapi.Client, pageid string, heade
 	return GetTableRowBlockbyHeader(tableBlockChildren.Results, header)
 }
 
-func RequestRowValueByHeader(client *notionapi.Client, pageid string, header string) (result string, err error) {
-	tableRow, err := RequestTableRowBlockByHeader(client, pageid, header)
-	if err != nil {
-		return "", err
-	}
+//GetRowValue:return the value of the corresponding header in a table (does not check header only return second cell text content)
+func GetRowValue(tableRow notionapi.TableRowBlock) (result string, err error) {
 	if len(tableRow.TableRow.Cells) < 2 {
 		err = fmt.Errorf("failed retrieving value in table row (seems that the row does not have more than 1 columns)")
 		return "", err
@@ -344,13 +308,55 @@ func RequestRowValueByHeader(client *notionapi.Client, pageid string, header str
 	return result, err
 }
 
-//RequestTargetUrlFromConfig: return the value of the cell specifying the target urll/ip
+//RequestRowValueByHeader: make a request to retrieve the config table and return the value of the corresponding header
+func RequestRowValueByHeader(client *notionapi.Client, pageid string, header string) (result string, err error) {
+	tableRow, err := RequestTableRowBlockByHeader(client, pageid, header)
+	if err != nil {
+		return "", err
+	}
+	return GetRowValue(tableRow)
+}
+
+//GetTargetUrlFromConfig: return the value of the cell specifying the target url/ip
+func GetTargetUrlFromConfig(children notionapi.Blocks) (targetUrl string, err error) {
+	tableRow, err := GetTableRowBlockbyHeader(children, TARGET)
+	if err != nil {
+		return "", err
+	}
+	return GetRowValue(tableRow)
+}
+
+//RequestTargetUrlFromConfig: return the value of the cell specifying the target url/ip by making a request
 func RequestTargetUrlFromConfig(client *notionapi.Client, pageid string) (targetUrl string, err error) {
 	return RequestRowValueByHeader(client, pageid, TARGET)
 }
 
-//RequestTargetUrl: return the value of the cell specifying the target urll/ip
+//GetTargetUrlFromConfig: return the value of the cell specifying the target url/ip
+func GetPortFromConfig(children notionapi.Blocks) (port string, err error) {
+	tableRow, err := GetTableRowBlockbyHeader(children, PORT)
+	if err != nil {
+		return "", err
+	}
+	return GetRowValue(tableRow)
+}
+
+//RequestPortFromConfig: return the value of the cell specifying the port by making a request
 func RequestPortFromConfig(client *notionapi.Client, pageid string) (port string, err error) {
 
 	return RequestRowValueByHeader(client, pageid, PORT)
+}
+
+//GetShellFromConfig: return the value of the cell specifying the shell
+func GetShellFromConfig(children notionapi.Blocks) (shell string, err error) {
+	tableRow, err := GetTableRowBlockbyHeader(children, SHELL)
+	if err != nil {
+		return "", err
+	}
+	return GetRowValue(tableRow)
+}
+
+//RequestShellFromConfig: return the value of the cell specifying the shell by making a request
+func RequestShellFromConfig(client *notionapi.Client, pageid string) (shell string, err error) {
+
+	return RequestRowValueByHeader(client, pageid, SHELL)
 }
