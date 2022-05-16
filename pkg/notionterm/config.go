@@ -13,4 +13,5 @@ type Config struct {
 	Pageid string
 	Path   string
 	PS1    string
+	Shell  string
 }

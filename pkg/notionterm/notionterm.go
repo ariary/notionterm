@@ -15,22 +15,29 @@ import (
 
 //Init: init notionterm: param, envar etc
 func Init() (config Config) {
-	var buttonUrlOverride, port string
+	var buttonUrlOverride, port, token, pageurl string
 	flag.StringVar(&buttonUrlOverride, "button-url", "", "override button url (useful if notionterm service is behind a proxy)")
 	flag.StringVar(&port, "p", "", "specify target listening port (HTTP traffic)")
+	flag.StringVar(&token, "token", "", "specify notion integration/API token")
+	flag.StringVar(&pageurl, "page", "", "notionterm URL")
+	flag.StringVar(&config.Shell, "shell", "sh", "shell runtime (\"sh,bash and cmd.exe\")")
 	flag.Parse()
 
 	// integration token
-	token := os.Getenv("NOTION_TOKEN")
 	if token == "" {
-		fmt.Println("❌ Please set NOTION_TOKEN envvar with your integration token before launching notionion")
-		os.Exit(92)
+		token = os.Getenv("NOTION_TOKEN")
+		if token == "" {
+			fmt.Println("❌ Please set NOTION_TOKEN envvar with your integration token before launching notionterm or use --token flag")
+			os.Exit(92)
+		}
 	}
 	// page id
-	pageurl := os.Getenv("NOTION_TERM_PAGE_URL")
 	if pageurl == "" {
-		fmt.Println("❌ Please set NOTION_TERM_PAGE_URL envvar with your page id before launching notionion (CTRL+L on desktop app)")
-		os.Exit(92)
+		pageurl = os.Getenv("NOTION_TERM_PAGE_URL")
+		if pageurl == "" {
+			fmt.Println("❌ Please set NOTION_TERM_PAGE_URL envvar with your page id before launching notionterm (CTRL+L on desktop app), or use --page flag")
+			os.Exit(92)
+		}
 	}
 
 	config.Pageid = pageurl[strings.LastIndex(pageurl, "-")+1:]
@@ -74,7 +81,7 @@ func Init() (config Config) {
 
 	// port config
 	if port == "" {
-		if port, _ = RequestPortFromConfig(config.Client, config.Pageid); port == "" {
+		if port, err = RequestPortFromConfig(config.Client, config.Pageid); port == "" && err != nil {
 			port = "9292"
 		}
 	}
@@ -113,20 +120,21 @@ func Init() (config Config) {
 	}
 
 	// code/terminal section check
+	config.PS1 = "$ "
 	if code, err := GetTerminalBlock(children); err != nil {
 		fmt.Println("❌ terminal section not found in notionterm page")
 		os.Exit(92)
 	} else {
 		fmt.Println("👨‍💻 terminal block found")
-		UpdateCodeContent(config.Client, code.ID, "$ ")
+		UpdateCodeContent(config.Client, code.ID, config.PS1)
 	}
 
-	// for i := 0; i < len(children); i++ {
-	// 	fmt.Printf("%+v", children[i])
-	// }
-
-	config.PS1 = "$ "
 	config.Delay = 500 * time.Millisecond
+
+	//Shell runtime checks
+	// if shell, _ := RequestShellFromConfig(config.Client, config.Pageid); shell != "" {
+	// 	config.Shell = shell
+	// }
 
 	return config
 
@@ -154,16 +162,16 @@ func NotionTerm(config Config, play chan struct{}, pause chan struct{}) {
 				fmt.Println(err)
 			}
 			//fmt.Println("last:", cmd)
-			if strings.Contains(cmd, "\n") && strings.HasPrefix(cmd, "$ ") {
+			if strings.Contains(cmd, "\n") && strings.HasPrefix(cmd, config.PS1) {
 				if isCommand(cmd) {
-					cmdSplit := strings.Split(cmd, "$ ")
+					cmdSplit := strings.Split(cmd, config.PS1)
 					if len(cmdSplit) > 1 {
 						cmd = cmdSplit[1]
 					}
 					cmd = strings.Replace(cmd, "\n", "", -1)
 					if !handleSpecialCommand(&config, termBlock, cmd) {
 						//Execute it and print
-						ExecAndPrint(config.Client, termBlock, config.Path, cmd)
+						ExecAndPrint(&config, termBlock, cmd)
 					}
 
 					//refresh+add new terminal line ($)
@@ -214,10 +222,17 @@ func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd str
 }
 
 //ExecAndPrint: execute command and print the result in code block
-func ExecAndPrint(client *notionapi.Client, termBlock notionapi.CodeBlock, path string, cmd string) {
+func ExecAndPrint(config *Config, termBlock notionapi.CodeBlock, cmd string) {
 	fmt.Println("📟", cmd)
-	commandExec := exec.Command("sh", "-c", cmd)
-	commandExec.Dir = path
+	var flag string
+	switch config.Shell {
+	case "cmd.exe":
+		flag = "\\C"
+	default:
+		flag = "-c"
+	}
+	commandExec := exec.Command(config.Shell, flag, cmd)
+	commandExec.Dir = config.Path
 	stdout, err := commandExec.CombinedOutput()
 
 	if err != nil {
@@ -226,7 +241,7 @@ func ExecAndPrint(client *notionapi.Client, termBlock notionapi.CodeBlock, path 
 	}
 	// Print the output
 	//fmt.Println(string(stdout))
-	if _, err := AddRichText(client, termBlock, string(stdout)); err != nil {
+	if _, err := AddRichText(config.Client, termBlock, string(stdout)); err != nil {
 		fmt.Println("failed to add rich text in terminal code block:", err)
 	}
 }
