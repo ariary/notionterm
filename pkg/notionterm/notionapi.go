@@ -9,8 +9,8 @@ import (
 	"github.com/jomei/notionapi"
 )
 
-const CONFIGURATION string = "Configuration"
-const TERMINAL string = "Terminal"
+const CONFIGURATION string = "C O N F I G U R A T I O N"
+const TERMINAL string = "T E R M I N A L"
 const TARGET = "Target"
 const PORT = "Port"
 const SHELL = "Shell"

@@ -21,7 +21,7 @@ func main() {
 
 	//WORKAROUND to make the button loading (find a way to launch server in background) => Launch server THEN update embed link
 	go func() {
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 		if buttonUrl != "" {
 			if _, err := notionterm.UpdateButtonUrl(config.Client, buttonID, buttonUrl); err != nil {
 				fmt.Println("Failed updating button url:", err)

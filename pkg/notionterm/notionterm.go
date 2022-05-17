@@ -117,7 +117,7 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	}
 	button, err := GetButtonBlock(children)
 	if err != nil {
-		fmt.Println("❌ button not found in the notionterm page")
+		fmt.Println("❌ button not found in the notionterm page:", err)
 		os.Exit(92)
 	} else {
 		fmt.Println("🕹️ button widget found")
