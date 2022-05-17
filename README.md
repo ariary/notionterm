@@ -56,7 +56,7 @@ roughly inspired by the great idea of <a href="https://github.com/mttaggart/Offe
 ## Quickstart
 
 **Set-up**
-1. Create the "reverse shell" page in Notion: [Page template](https://fluff-grade-468.notion.site/notionterm_template-325ee13b7ece4e1b9cb76507e977b6d9)
+1. Create the "reverse shell" page in Notion: [Page template](https://fluff-grade-468.notion.site/notionterm-template-19dc9d0bbae04f40b56c475f8cd79607)
 2. Give the permissions to `notionterm` to access the page (with the notion api key)
 
 **Run** ([details](#-run))
