@@ -19,18 +19,19 @@ var pageurl, token string
 //Init: init notionterm: param, envar etc
 func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	var buttonUrlOverride, portFlag string
+	var delay int
 	flag.StringVar(&buttonUrlOverride, "button-url", "", "override button url (useful if notionterm service is behind a proxy)")
 	flag.StringVar(&portFlag, "p", "", "specify target listening port (HTTP traffic)")
+	flag.StringVar(&config.Shell, "shell", "sh", "shell runtime (\"sh,bash and cmd.exe\")")
+	flag.IntVar(&delay, "delay", 500, "delay between each api call")
 
 	if token == "" { //not defined at build time
 		flag.StringVar(&token, "token", "", "specify notion integration/API token")
 	}
-
 	if pageurl == "" { //not defined at build time
 		flag.StringVar(&pageurl, "page", "", "notionterm URL")
 	}
 
-	flag.StringVar(&config.Shell, "shell", "sh", "shell runtime (\"sh,bash and cmd.exe\")")
 	flag.Parse()
 	// integration token
 	if token == "" {
@@ -156,7 +157,7 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 		UpdateCodeContent(config.Client, code.ID, config.PS1)
 	}
 
-	config.Delay = 500 * time.Millisecond
+	config.Delay = time.Duration(delay) * time.Millisecond
 
 	return config, button.ID, buttonUrl
 
