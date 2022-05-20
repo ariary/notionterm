@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/user"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -219,23 +221,36 @@ func isCommand(command string) bool {
 }
 
 func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd string) (isSpecial bool) {
-
-	if strings.HasPrefix(cmd, "cd ") { //TODO handle if beginnign with .. to mak ethe path absolute for caption
+	if strings.HasPrefix(cmd, "cd ") { //TODO handle cd without space ("cd " = "cd")
 		//change path
 		cmdSplit := strings.Split(cmd, " ")
 		if len(cmdSplit) > 1 {
 			path := cmdSplit[1]
-			if button, err := RequestButtonBlock(config.Client, config.PageID); err != nil {
-				fmt.Println(err)
-			} else {
-				UpdateButtonCaption(config.Client, button, path)
-				config.Path = path
-				fmt.Println("📁 Change directory:", path)
+			//check path
+			if path == "" {
+				if user, err := user.Current(); err == nil {
+					path = user.HomeDir
+				}
+			} else if !strings.HasPrefix(path, "/") {
+				path = config.Path + "/" + path
+				if pathTmp, err := filepath.Abs(path); err == nil {
+					path = pathTmp
+				}
 			}
-			return true
+			if info, err := os.Stat(path); !os.IsNotExist(err) && info.IsDir() {
+				//update button
+				if button, err := RequestButtonBlock(config.Client, config.PageID); err != nil {
+					fmt.Println(err)
+				} else {
+					UpdateButtonCaption(config.Client, button, path)
+					config.Path = path
+					fmt.Println("📁 Change directory:", path)
+				}
+			}
 		} else {
 			fmt.Println("Failed retrieving directory in 'cd' command:", cmd)
 		}
+		return true
 	} else if strings.HasPrefix(cmd, "clear") {
 		fmt.Println("🦆 Clear terminal")
 		UpdateCodeContent(config.Client, termBlock.ID, "")
