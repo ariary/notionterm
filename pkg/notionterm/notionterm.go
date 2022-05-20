@@ -14,16 +14,24 @@ import (
 	"github.com/jomei/notionapi"
 )
 
+var pageurl, token string
+
 //Init: init notionterm: param, envar etc
 func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
-	var buttonUrlOverride, portFlag, token, pageurl string
+	var buttonUrlOverride, portFlag string
 	flag.StringVar(&buttonUrlOverride, "button-url", "", "override button url (useful if notionterm service is behind a proxy)")
 	flag.StringVar(&portFlag, "p", "", "specify target listening port (HTTP traffic)")
-	flag.StringVar(&token, "token", "", "specify notion integration/API token")
-	flag.StringVar(&pageurl, "page", "", "notionterm URL")
+
+	if token == "" { //not defined at build time
+		flag.StringVar(&token, "token", "", "specify notion integration/API token")
+	}
+
+	if pageurl == "" { //not defined at build time
+		flag.StringVar(&pageurl, "page", "", "notionterm URL")
+	}
+
 	flag.StringVar(&config.Shell, "shell", "sh", "shell runtime (\"sh,bash and cmd.exe\")")
 	flag.Parse()
-
 	// integration token
 	if token == "" {
 		token = os.Getenv("NOTION_TOKEN")
@@ -44,6 +52,7 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	config.PageID = pageurl[strings.LastIndex(pageurl, "-")+1:]
 	if config.PageID == pageurl {
 		fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
+		os.Exit(92)
 	}
 
 	// CHECK PAGE CONTENT
