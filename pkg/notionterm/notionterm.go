@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
@@ -22,10 +24,12 @@ var pageurl, token string
 func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	var buttonUrlOverride, portFlag string
 	var delay int
+	var isServer bool
 	flag.StringVar(&buttonUrlOverride, "button-url", "", "override button url (useful if notionterm service is behind a proxy)")
 	flag.StringVar(&portFlag, "p", "", "specify target listening port (HTTP traffic)")
 	flag.StringVar(&config.Shell, "shell", "sh", "shell runtime (\"sh,bash and cmd.exe\")")
 	flag.IntVar(&delay, "delay", 500, "delay between each api call")
+	flag.BoolVar(&isServer, "serve", false, "use notionterm in server mode .i.e wait for request specifying the notion page url to add terminal")
 
 	if token == "" { //not defined at build time
 		flag.StringVar(&token, "token", "", "specify notion integration/API token")
@@ -35,6 +39,7 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	}
 
 	flag.Parse()
+
 	// integration token
 	if token == "" {
 		token = os.Getenv("NOTION_TOKEN")
@@ -42,6 +47,45 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 			fmt.Println("❌ Please set NOTION_TOKEN envvar with your integration token before launching notionterm or use --token flag")
 			os.Exit(92)
 		}
+	}
+
+	if isServer {
+		var urlServerPort string
+		if portFlag == "" {
+			urlServerPort = "9292"
+		} else {
+			urlServerPort = portFlag
+		}
+		m := http.NewServeMux()
+		s := http.Server{Addr: ":" + urlServerPort, Handler: m}
+		urlCh := make(chan string)
+		m.HandleFunc("/notionterm", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("OK"))
+			// Send query parameter to the channel
+			urlCh <- r.URL.Query().Get("url")
+		})
+		go func() {
+			fmt.Println("🌀 Start server.. waiting for notion page url")
+			if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatal(err)
+			}
+		}()
+		select {
+		case url := <-urlCh:
+
+			pageId := url[strings.LastIndex(url, "-")+1:]
+			if pageId == url {
+				fmt.Println("❌ Page ID was not found in url provided", url, ". Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
+			} else {
+				// Post process after shutdown here
+				s.Shutdown(context.Background())
+				fmt.Println("🎫 Got Page ID:", pageId)
+				config.PageID = pageId
+				//to do: create blocks
+			}
+
+		}
+		log.Printf("Finished")
 	}
 	// page id
 	if pageurl == "" {
@@ -72,6 +116,9 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 		os.Exit(92)
 	}
 	tableBlockChildren, err := config.Client.Block.GetChildren(context.Background(), configTable.ID, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	// target  config
 	//targetUrl: find target reachable url (neither in args or in page otherwise try to find it)
