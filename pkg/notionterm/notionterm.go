@@ -70,22 +70,23 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 				log.Fatal(err)
 			}
 		}()
-		select {
-		case url := <-urlCh:
+		for {
+			select {
+			case url := <-urlCh:
 
-			pageId := url[strings.LastIndex(url, "-")+1:]
-			if pageId == url {
-				fmt.Println("❌ Page ID was not found in url provided", url, ". Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
-			} else {
-				// Post process after shutdown here
-				s.Shutdown(context.Background())
-				fmt.Println("🎫 Got Page ID:", pageId)
-				config.PageID = pageId
-				//to do: create blocks
+				pageId := url[strings.LastIndex(url, "-")+1:]
+				if pageId == url {
+					fmt.Println("Page ID was not found in url provided:", url, ". Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
+				} else {
+					// Post process after shutdown here
+					s.Shutdown(context.Background())
+					fmt.Println("🎫 Got Page ID:", pageId)
+					config.PageID = pageId
+					//to do: create blocks
+					return
+				}
 			}
-
 		}
-		log.Printf("Finished")
 	}
 	// page id
 	if pageurl == "" {
