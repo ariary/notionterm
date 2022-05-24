@@ -4,8 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
@@ -40,6 +38,8 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 
 	flag.Parse()
 
+	config.Delay = time.Duration(delay) * time.Millisecond
+
 	// integration token
 	if token == "" {
 		token = os.Getenv("NOTION_TOKEN")
@@ -50,176 +50,14 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	}
 
 	if isServer {
-		var urlServerPort string
-		if portFlag == "" {
-			urlServerPort = "9292"
-		} else {
-			urlServerPort = portFlag
-		}
-		config.Port = urlServerPort
-		m := http.NewServeMux()
-		s := http.Server{Addr: ":" + urlServerPort, Handler: m}
-		urlCh := make(chan string)
-		resp := `
-<html>
-    <body>
-        <p>⌛ Waiting for notionterm set up</p> 
-    </body>
-</html>
-`
-		m.HandleFunc("/notionterm", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(resp))
-			// Send query parameter to the channel
-			urlCh <- r.URL.Query().Get("url")
-		})
-		go func() {
-			fmt.Println("🌀 Start server on", urlServerPort, ".. waiting for notion page url")
-			if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Fatal(err)
-			}
-		}()
-
-		config.PageID = listenAndWaitPageId(&s, urlCh)
+		config.Port, config.PageID = launchUrlWaitingServer(portFlag)
 	} else {
-
 		// page id
-		if pageurl == "" {
-			pageurl = os.Getenv("NOTION_TERM_PAGE_URL")
-			if pageurl == "" {
-				fmt.Println("❌ Please set NOTION_TERM_PAGE_URL envvar with your page id before launching notionterm (CTRL+L on desktop app), or use --page flag")
-				os.Exit(92)
-			}
-		}
-
-		config.PageID = pageurl[strings.LastIndex(pageurl, "-")+1:]
-		if config.PageID == pageurl {
-			fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
-			os.Exit(92)
-		}
+		config.PageID = getPageId(pageurl)
 	}
+
 	// CHECK PAGE CONTENT
-	config.Client = notionapi.NewClient(notionapi.Token(token))
-
-	children, err := notionion.RequestProxyPageChildren(config.Client, config.PageID)
-	if err != nil {
-		fmt.Println("Failed retrieving page children blocks:", err)
-		os.Exit(92)
-	}
-	var tableBlockChildren *notionapi.GetChildrenResponse
-
-	if !isServer {
-		configTable, err := RequestTableBlock(config.Client, config.PageID)
-		if err != nil {
-			fmt.Println("Failed retrieving config table blocks:", err)
-			os.Exit(92)
-		}
-		tableBlockChildren, err = config.Client.Block.GetChildren(context.Background(), configTable.ID, nil)
-		if err != nil {
-			fmt.Println(err)
-		}
-	}
-	// target  config
-	//targetUrl: find target reachable url (neither in args or in page otherwise try to find it)
-	var targetUrl string
-	if len(flag.Args()) > 0 { //in args
-		targetUrl = flag.Arg(0)
-	} else {
-		var targetUrlTmp string
-		if !isServer {
-			//in page
-			targetUrlTmp, _ = GetTargetUrlFromConfig(tableBlockChildren.Results)
-		}
-		if targetUrlTmp == "" {
-			//try to find it
-			targetUrlTmp, err = host.GetExternalIP()
-			if err != nil {
-				fmt.Println("Failed to detect external ip (dig):", err)
-			} else if targetUrlTmp == "" {
-				targetUrlTmp, err = host.GetHostIP()
-				if err != nil {
-					fmt.Println("Failed to detect external ip (hostname):", err)
-				}
-			}
-		}
-		targetUrl = targetUrlTmp
-	}
-
-	// port config (already set if server mode)
-	if !isServer {
-		if portFlag == "" {
-			if portFromPage, err := GetPortFromConfig(tableBlockChildren.Results); portFromPage == "" || err != nil {
-				config.Port = "9292"
-			} else {
-				config.Port = portFromPage
-			}
-		} else {
-			config.Port = portFlag
-		}
-	}
-
-	//Shell runtime checks
-	if !isServer {
-		if shell, err := GetShellFromConfig(tableBlockChildren.Results); shell != "" && err != nil {
-			config.Shell = shell
-		}
-	}
-
-	// embed button section checks
-	if targetUrl == "" {
-		fmt.Println("❌ Failed to get target URL/IP")
-		os.Exit(92)
-	} else if buttonUrlOverride == "" {
-		fmt.Println("📡 Target:", targetUrl)
-		buttonUrl = "https://" + targetUrl + ":" + config.Port + "/button"
-	} else {
-		fmt.Println("📡 Target button url:", buttonUrlOverride)
-		buttonUrl = buttonUrlOverride
-	}
-
-	//create block neeeded if server mode
-	if isServer {
-		createNotionTermBlock(&config, children, buttonUrl)
-		//update children
-		children, err = notionion.RequestProxyPageChildren(config.Client, config.PageID)
-		if err != nil {
-			fmt.Println("Failed retrieving page children blocks:", err)
-			os.Exit(92)
-		}
-	}
-
-	button, err := GetButtonBlock(children)
-	if err != nil {
-		fmt.Println("❌ button not found in the notionterm page:", err)
-		os.Exit(92)
-	} else {
-		fmt.Println("🕹️ button widget found")
-		// //TO FIX: USELESS UNTIL WORKAROUND TO LOAD EMBED LINK IS WITHDRAWN
-		// if buttonUrl != "" {
-		// 	if _, err := UpdateButtonUrl(config.Client, button.ID, buttonUrl); err != nil {
-		// 		fmt.Println("Failed updating button url:", err)
-		// 		os.Exit(92)
-		// 	}
-		// }
-		//get current path & update Caption accordingly
-		config.Path, err = os.Getwd()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(92)
-		}
-		UpdateButtonCaption(config.Client, button, config.Path)
-	}
-
-	// code/terminal section check
-	config.PS1 = "$ "
-	if code, err := GetTerminalBlock(children); err != nil {
-		fmt.Println("❌ terminal section not found in notionterm page")
-		os.Exit(92)
-	} else {
-		fmt.Println("👨‍💻 terminal block found")
-		UpdateCodeContent(config.Client, code.ID, config.PS1)
-	}
-
-	config.Delay = time.Duration(delay) * time.Millisecond
+	button, buttonUrl := checkPageContent(token, &config, isServer, buttonUrlOverride, portFlag)
 
 	return config, button.ID, buttonUrl
 
@@ -343,4 +181,151 @@ func ExecAndPrint(config *Config, termBlock notionapi.CodeBlock, cmd string) {
 	if _, err := AddRichText(config.Client, termBlock, string(stdout)); err != nil {
 		fmt.Println("failed to add rich text in terminal code block:", err)
 	}
+}
+
+//getPageId: retriev page ID from url giving in parameter or envvar
+func getPageId(pageurl string) (pageid string) {
+	if pageurl == "" {
+		pageurl = os.Getenv("NOTION_TERM_PAGE_URL")
+		if pageurl == "" {
+			fmt.Println("❌ Please set NOTION_TERM_PAGE_URL envvar with your page id before launching notionterm (CTRL+L on desktop app), or use --page flag")
+			os.Exit(92)
+		}
+	}
+
+	pageid = pageurl[strings.LastIndex(pageurl, "-")+1:]
+	if pageid == pageurl {
+		fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
+		os.Exit(92)
+	}
+
+	return pageid
+}
+
+//checkPageContent: check if all the required blocks and parameters are in place. Check config in table: retrieve target url, retrieve target port, retrieve shell.
+// check for block presence: embed block (aka button) and code block (aka term block), create them if in server mode.
+// update block: add caption w/ path for the button, add PS1 line for the term block
+func checkPageContent(token string, config *Config, isServer bool, buttonUrlOverride string, portFlag string) (button notionapi.EmbedBlock, buttonUrl string) {
+	config.Client = notionapi.NewClient(notionapi.Token(token))
+
+	children, err := notionion.RequestProxyPageChildren(config.Client, config.PageID)
+	if err != nil {
+		fmt.Println("Failed retrieving page children blocks:", err)
+		os.Exit(92)
+	}
+	var tableBlockChildren *notionapi.GetChildrenResponse
+
+	if !isServer {
+		configTable, err := RequestTableBlock(config.Client, config.PageID)
+		if err != nil {
+			fmt.Println("Failed retrieving config table blocks:", err)
+			os.Exit(92)
+		}
+		tableBlockChildren, err = config.Client.Block.GetChildren(context.Background(), configTable.ID, nil)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	// target  config
+	//targetUrl: find target reachable url (neither in args or in page otherwise try to find it)
+	var targetUrl string
+	if len(flag.Args()) > 0 { //in args
+		targetUrl = flag.Arg(0)
+	} else {
+		var targetUrlTmp string
+		if !isServer {
+			//in page
+			targetUrlTmp, _ = GetTargetUrlFromConfig(tableBlockChildren.Results)
+		}
+		if targetUrlTmp == "" {
+			//try to find it
+			targetUrlTmp, err = host.GetExternalIP()
+			if err != nil {
+				fmt.Println("Failed to detect external ip (dig):", err)
+			} else if targetUrlTmp == "" {
+				targetUrlTmp, err = host.GetHostIP()
+				if err != nil {
+					fmt.Println("Failed to detect external ip (hostname):", err)
+				}
+			}
+		}
+		targetUrl = targetUrlTmp
+	}
+
+	// port config (already set if server mode)
+	if !isServer {
+		if portFlag == "" {
+			if portFromPage, err := GetPortFromConfig(tableBlockChildren.Results); portFromPage == "" || err != nil {
+				config.Port = "9292"
+			} else {
+				config.Port = portFromPage
+			}
+		} else {
+			config.Port = portFlag
+		}
+	}
+
+	//Shell runtime checks
+	if !isServer {
+		if shell, err := GetShellFromConfig(tableBlockChildren.Results); shell != "" && err != nil {
+			config.Shell = shell
+		}
+	}
+
+	// embed button section checks
+	if targetUrl == "" {
+		fmt.Println("❌ Failed to get target URL/IP")
+		os.Exit(92)
+	} else if buttonUrlOverride == "" {
+		fmt.Println("📡 Target:", targetUrl)
+		buttonUrl = "https://" + targetUrl + ":" + config.Port + "/button"
+	} else {
+		fmt.Println("📡 Target button url:", buttonUrlOverride)
+		buttonUrl = buttonUrlOverride
+	}
+
+	//create block neeeded if server mode
+	if isServer {
+		createNotionTermBlock(config, children, buttonUrl)
+		//update children
+		children, err = notionion.RequestProxyPageChildren(config.Client, config.PageID)
+		if err != nil {
+			fmt.Println("Failed retrieving page children blocks:", err)
+			os.Exit(92)
+		}
+	}
+
+	button, err = GetButtonBlock(children)
+	if err != nil {
+		fmt.Println("❌ button not found in the notionterm page:", err)
+		os.Exit(92)
+	} else {
+		fmt.Println("🕹️ button widget found")
+		// //TO FIX: USELESS UNTIL WORKAROUND TO LOAD EMBED LINK IS WITHDRAWN
+		// if buttonUrl != "" {
+		// 	if _, err := UpdateButtonUrl(config.Client, button.ID, buttonUrl); err != nil {
+		// 		fmt.Println("Failed updating button url:", err)
+		// 		os.Exit(92)
+		// 	}
+		// }
+		//get current path & update Caption accordingly
+		config.Path, err = os.Getwd()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(92)
+		}
+		UpdateButtonCaption(config.Client, button, config.Path)
+	}
+
+	// code/terminal section check
+	config.PS1 = "$ "
+	if code, err := GetTerminalBlock(children); err != nil {
+		fmt.Println("❌ terminal section not found in notionterm page")
+		os.Exit(92)
+	} else {
+		fmt.Println("👨‍💻 terminal block found")
+		UpdateCodeContent(config.Client, code.ID, config.PS1)
+	}
+
+	return button, buttonUrl
 }

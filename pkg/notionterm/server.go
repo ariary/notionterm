@@ -3,6 +3,7 @@ package notionterm
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -119,13 +120,13 @@ func createNotionTermBlock(config *Config, children notionapi.Blocks, url string
 			fmt.Println("Failed creating embed block", err)
 			os.Exit(92)
 		}
-
 	} else {
 		if _, err := UpdateButtonUrl(config.Client, embed.GetID(), url); err != nil {
-			fmt.Println("Failed tranform embed block to button (update URL):", err)
+			fmt.Println("Failed transform embed block to button (update URL):", err)
 			os.Exit(92)
 		}
 	}
+
 	//CREATE TERMINAL BLOCK
 	if err := AppendCodeBlock(config.Client, config.PageID, ""); err != nil {
 		fmt.Println("Failed creating terminal block", err)
@@ -133,4 +134,39 @@ func createNotionTermBlock(config *Config, children notionapi.Blocks, url string
 	}
 
 	time.Sleep(1500 * time.Millisecond)
+}
+
+func launchUrlWaitingServer(portFlag string) (port string, pageid string) {
+	var urlServerPort string
+	if portFlag == "" {
+		urlServerPort = "9292"
+	} else {
+		urlServerPort = portFlag
+	}
+	port = urlServerPort
+	m := http.NewServeMux()
+	s := http.Server{Addr: ":" + urlServerPort, Handler: m}
+	urlCh := make(chan string)
+	resp := `
+<html>
+<body>
+	<p>⌛ Waiting for notionterm set up</p> 
+</body>
+</html>
+`
+	m.HandleFunc("/notionterm", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(resp))
+		// Send query parameter to the channel
+		urlCh <- r.URL.Query().Get("url")
+	})
+	go func() {
+		fmt.Println("🌀 Start server on", urlServerPort, ".. waiting for notion page url")
+		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
+
+	pageid = listenAndWaitPageId(&s, urlCh)
+
+	return port, pageid
 }
