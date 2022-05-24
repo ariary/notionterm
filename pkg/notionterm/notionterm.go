@@ -154,6 +154,10 @@ func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd str
 		fmt.Println("🦆 Clear terminal")
 		UpdateCodeContent(config.Client, termBlock.ID, "")
 		return true
+	} else if strings.HasPrefix(cmd, "bye") {
+		fmt.Println("👋 Close notionterm")
+		UpdateCodeContent(config.Client, termBlock.ID, "🫡 see u")
+		return true
 	}
 	return false
 }
