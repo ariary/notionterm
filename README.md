@@ -77,18 +77,6 @@ Configuration can be made using:
 - Flags
 - Configuration table in notion page
 
-You can choose between:
-*    `-button-url` string
-        override button url (useful if notionterm service is behind a proxy)
-*  `-delay` int
-        delay between each api call (default 500)
-*  `-p` string
-        specify target listening port (HTTP traffic)
- * `-serve`
-        use notionterm in server mode .i.e wait for request specifying the notion page url to add terminal
-*  `-shell` string
-        shell runtime ("sh,bash and cmd.exe") (default "sh")
-
 #### Server mode
 To quickly obtain terminal in any notion page you can use the server mode (Requirement: *integration w/ write access to the page*)
 
