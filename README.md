@@ -94,7 +94,7 @@ To quickly obtain terminal in any notion page you can use the server mode (Requi
 
 **First**, Launch notionterm on target with server mode enable:
 ```shell
-notionterm -server [flags]
+notionterm -serve [flags]
 ```
 **Then**, when/where you want to get a terminal in your notion page create an embed block with url containing the page id *(`CTRL+L`to get it)*: `https://[TARGET_URL]/notionterm?url=[PAGE_ID]`.
 
