@@ -56,53 +56,47 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 		} else {
 			urlServerPort = portFlag
 		}
+		config.Port = urlServerPort
 		m := http.NewServeMux()
 		s := http.Server{Addr: ":" + urlServerPort, Handler: m}
 		urlCh := make(chan string)
+		resp := `
+<html>
+    <body>
+        <p>⌛ Waiting for notionterm set up</p> 
+    </body>
+</html>
+`
 		m.HandleFunc("/notionterm", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("OK"))
+			w.Write([]byte(resp))
 			// Send query parameter to the channel
 			urlCh <- r.URL.Query().Get("url")
 		})
 		go func() {
-			fmt.Println("🌀 Start server.. waiting for notion page url")
+			fmt.Println("🌀 Start server on", urlServerPort, ".. waiting for notion page url")
 			if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				log.Fatal(err)
 			}
 		}()
-		for {
-			select {
-			case url := <-urlCh:
 
-				pageId := url[strings.LastIndex(url, "-")+1:]
-				if pageId == url {
-					fmt.Println("Page ID was not found in url provided:", url, ". Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
-				} else {
-					// Post process after shutdown here
-					s.Shutdown(context.Background())
-					fmt.Println("🎫 Got Page ID:", pageId)
-					config.PageID = pageId
-					//to do: create blocks
-					return
-				}
+		config.PageID = listenAndWaitPageId(&s, urlCh)
+	} else {
+
+		// page id
+		if pageurl == "" {
+			pageurl = os.Getenv("NOTION_TERM_PAGE_URL")
+			if pageurl == "" {
+				fmt.Println("❌ Please set NOTION_TERM_PAGE_URL envvar with your page id before launching notionterm (CTRL+L on desktop app), or use --page flag")
+				os.Exit(92)
 			}
 		}
-	}
-	// page id
-	if pageurl == "" {
-		pageurl = os.Getenv("NOTION_TERM_PAGE_URL")
-		if pageurl == "" {
-			fmt.Println("❌ Please set NOTION_TERM_PAGE_URL envvar with your page id before launching notionterm (CTRL+L on desktop app), or use --page flag")
+
+		config.PageID = pageurl[strings.LastIndex(pageurl, "-")+1:]
+		if config.PageID == pageurl {
+			fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
 			os.Exit(92)
 		}
 	}
-
-	config.PageID = pageurl[strings.LastIndex(pageurl, "-")+1:]
-	if config.PageID == pageurl {
-		fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
-		os.Exit(92)
-	}
-
 	// CHECK PAGE CONTENT
 	config.Client = notionapi.NewClient(notionapi.Token(token))
 
@@ -111,28 +105,30 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 		fmt.Println("Failed retrieving page children blocks:", err)
 		os.Exit(92)
 	}
-	configTable, err := RequestTableBlock(config.Client, config.PageID)
-	if err != nil {
-		fmt.Println("Failed retrieving config table blocks:", err)
-		os.Exit(92)
-	}
-	tableBlockChildren, err := config.Client.Block.GetChildren(context.Background(), configTable.ID, nil)
-	if err != nil {
-		fmt.Println(err)
-	}
+	var tableBlockChildren *notionapi.GetChildrenResponse
 
+	if !isServer {
+		configTable, err := RequestTableBlock(config.Client, config.PageID)
+		if err != nil {
+			fmt.Println("Failed retrieving config table blocks:", err)
+			os.Exit(92)
+		}
+		tableBlockChildren, err = config.Client.Block.GetChildren(context.Background(), configTable.ID, nil)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
 	// target  config
 	//targetUrl: find target reachable url (neither in args or in page otherwise try to find it)
 	var targetUrl string
 	if len(flag.Args()) > 0 { //in args
 		targetUrl = flag.Arg(0)
 	} else {
-		//in page
-		targetUrlTmp, _ := GetTargetUrlFromConfig(tableBlockChildren.Results)
-		// targetUrlTmp, _ := RequestTargetUrlFromConfig(config.Client, config.PageID)
-		// if err != nil {
-		// 	fmt.Println("Failed to retrieve target URL from notion page:", err)
-		// }
+		var targetUrlTmp string
+		if !isServer {
+			//in page
+			targetUrlTmp, _ = GetTargetUrlFromConfig(tableBlockChildren.Results)
+		}
 		if targetUrlTmp == "" {
 			//try to find it
 			targetUrlTmp, err = host.GetExternalIP()
@@ -148,20 +144,24 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 		targetUrl = targetUrlTmp
 	}
 
-	// port config
-	if portFlag == "" {
-		if portFromPage, err := GetPortFromConfig(tableBlockChildren.Results); portFromPage == "" || err != nil {
-			config.Port = "9292"
+	// port config (already set if server mode)
+	if !isServer {
+		if portFlag == "" {
+			if portFromPage, err := GetPortFromConfig(tableBlockChildren.Results); portFromPage == "" || err != nil {
+				config.Port = "9292"
+			} else {
+				config.Port = portFromPage
+			}
 		} else {
-			config.Port = portFromPage
+			config.Port = portFlag
 		}
-	} else {
-		config.Port = portFlag
 	}
 
 	//Shell runtime checks
-	if shell, err := GetShellFromConfig(tableBlockChildren.Results); shell != "" && err != nil {
-		config.Shell = shell
+	if !isServer {
+		if shell, err := GetShellFromConfig(tableBlockChildren.Results); shell != "" && err != nil {
+			config.Shell = shell
+		}
 	}
 
 	// embed button section checks
@@ -175,6 +175,12 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 		fmt.Println("📡 Target button url:", buttonUrlOverride)
 		buttonUrl = buttonUrlOverride
 	}
+
+	//create block neeeded if server mode
+	if isServer {
+		createNotionTermBlock(&config, children, buttonUrl)
+	}
+
 	button, err := GetButtonBlock(children)
 	if err != nil {
 		fmt.Println("❌ button not found in the notionterm page:", err)
@@ -268,6 +274,7 @@ func isCommand(command string) bool {
 	return true
 }
 
+//handleSpecialCommand: make actions for specific  command
 func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd string) (isSpecial bool) {
 	if strings.HasPrefix(cmd, "cd ") { //TODO handle cd without space ("cd " = "cd")
 		//change path

@@ -15,9 +15,9 @@ const TARGET = "Target"
 const PORT = "Port"
 const SHELL = "Shell"
 
-//GetButtonBlock: retrieve "button" block (embed blocks)
+//GetButtonBlock: retrieve "button" block (embed blocks). No tests are made, only return last embed block in page
 func GetButtonBlock(children notionapi.Blocks) (button notionapi.EmbedBlock, err error) {
-	for i := 0; i < len(children); i++ {
+	for i := len(children) - 1; i >= 0; i-- {
 		if children[i].GetType() == notionapi.BlockTypeEmbed {
 			button = *children[i].(*notionapi.EmbedBlock)
 			return button, nil
@@ -359,4 +359,24 @@ func GetShellFromConfig(children notionapi.Blocks) (shell string, err error) {
 func RequestShellFromConfig(client *notionapi.Client, pageid string) (shell string, err error) {
 
 	return RequestRowValueByHeader(client, pageid, SHELL)
+}
+
+//AppendCodeBlock: Add a code block ("shell") at the end of the page
+func AppendCodeBlock(client *notionapi.Client, children notionapi.Blocks, pageid string) (err error) {
+	termBlock := notionapi.CodeBlock{
+		BasicBlock: notionapi.BasicBlock{Type: notionapi.BlockTypeCode},
+		Code: notionapi.Code{
+			Language: "shell",
+			RichText: []notionapi.RichText{notionapi.RichText{Text: notionapi.Text{Content: ""}}},
+		},
+	}
+	var nChildren notionapi.Blocks
+	nChildren = append(nChildren, termBlock)
+	for i := 0; i < len(nChildren); i++ {
+		fmt.Printf("%d:%+v\n", i+1, nChildren[i])
+	}
+
+	request := notionapi.AppendBlockChildrenRequest{Children: nChildren}
+	_, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
+	return err
 }

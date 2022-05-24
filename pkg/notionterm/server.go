@@ -1,9 +1,13 @@
 package notionterm
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"strings"
 	"text/template"
+	"time"
 
 	"github.com/ariary/go-utils/pkg/check"
 	"github.com/jomei/notionapi"
@@ -45,6 +49,7 @@ func buttonPage() http.Handler {
 	})
 }
 
+//ActivateNotionTerm: endpoint to activate notionterm
 func ActivateNotionTerm(client *notionapi.Client, pageid string, play chan struct{}) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("📶 notionterm activated")
@@ -52,6 +57,7 @@ func ActivateNotionTerm(client *notionapi.Client, pageid string, play chan struc
 	})
 }
 
+//DeactivateNotionTerm: endpoint to deactivate notionterm
 func DeactivateNotionTerm(pause chan struct{}) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("📴 notionterm deactivated")
@@ -59,8 +65,51 @@ func DeactivateNotionTerm(pause chan struct{}) http.Handler {
 	})
 }
 
+//SetupRoutes: set up notionterm routes
 func SetupRoutes(client *notionapi.Client, pageid string, play chan struct{}, pause chan struct{}) {
 	http.Handle("/button", buttonPage())
 	http.Handle("/activate", ActivateNotionTerm(client, pageid, play))
 	http.Handle("/deactivate", DeactivateNotionTerm(pause))
+}
+
+//Listen on /notionterm URL, and wait for page contained in "url" parameter, exit when found and stop server
+func listenAndWaitPageId(s *http.Server, urlCh chan string) string {
+	for {
+		select {
+		case url := <-urlCh:
+
+			pageId := url[strings.LastIndex(url, "-")+1:]
+			if pageId == url {
+				fmt.Println("Page ID was not found in url provided:", url, ". Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
+			} else {
+				// Post process after shutdown here (postponed a bit the shutdown cause notion make 2 requests)
+				s.Shutdown(context.Background())
+				fmt.Println("🎫 Got Page ID from request:", pageId)
+				return pageId
+			}
+		}
+	}
+}
+
+//createNotionTermBlock: udate embed block url to the button URL + create terminal block (code)
+func createNotionTermBlock(config *Config, children notionapi.Blocks, url string) {
+	//CREATE BUTTON BLOCK
+	//Updating the last embed does not work very well => delete embed + create one
+	time.Sleep(1 * time.Second) //wait the embed widget to be loaded
+	embed, err := GetButtonBlock(children)
+	if err != nil {
+		fmt.Println("Failed to create notion block:", err)
+		os.Exit(92)
+	}
+
+	if _, err := UpdateButtonUrl(config.Client, embed.ID, url); err != nil {
+		fmt.Println("Failed tranform embed block to button (update URL):", err)
+		os.Exit(92)
+	}
+
+	//CREATE TERMINAL BLOCK
+	if err := AppendCodeBlock(config.Client, children, config.PageID); err != nil {
+		fmt.Println("Failed creating terminal block", err)
+		os.Exit(92)
+	}
 }

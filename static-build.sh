@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [[ $# -ne 2 ]]; then
-    echo "usage: ./static build.sh \$NOTIONTERM_PAGE_URL \$NOTION_TOKEN"
+    echo "usage: ./static-build.sh \$NOTIONTERM_PAGE_URL \$NOTION_TOKEN"
     exit 92
 fi
 
