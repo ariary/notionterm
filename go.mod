@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/ariary/go-utils v1.0.15
 	github.com/ariary/notionion v0.0.2
-	github.com/jomei/notionapi v1.8.3
+	github.com/jomei/notionapi v1.8.4
 )
 
 require (

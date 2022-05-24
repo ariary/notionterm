@@ -38,7 +38,7 @@ func RequestButtonBlock(client *notionapi.Client, pageid string) (terminal notio
 
 //GetTerminalBlock: retrieve "terminal" block (code blocks)
 func GetTerminalBlock(children notionapi.Blocks) (terminal notionapi.CodeBlock, err error) {
-	for i := 0; i < len(children); i++ {
+	for i := len(children) - 1; i >= 0; i-- {
 		if children[i].GetType() == notionapi.BlockTypeCode {
 			terminal = *children[i].(*notionapi.CodeBlock)
 			//to do check if terminal is under the button
@@ -362,21 +362,45 @@ func RequestShellFromConfig(client *notionapi.Client, pageid string) (shell stri
 }
 
 //AppendCodeBlock: Add a code block ("shell") at the end of the page
-func AppendCodeBlock(client *notionapi.Client, children notionapi.Blocks, pageid string) (err error) {
-	termBlock := notionapi.CodeBlock{
-		BasicBlock: notionapi.BasicBlock{Type: notionapi.BlockTypeCode},
-		Code: notionapi.Code{
-			Language: "shell",
-			RichText: []notionapi.RichText{notionapi.RichText{Text: notionapi.Text{Content: ""}}},
+func AppendCodeBlock(client *notionapi.Client, pageid string, content string) (err error) {
+	request := notionapi.AppendBlockChildrenRequest{
+		Children: []notionapi.Block{
+			&notionapi.CodeBlock{
+				BasicBlock: notionapi.BasicBlock{
+					Object: notionapi.ObjectTypeBlock,
+					Type:   notionapi.BlockTypeCode,
+				},
+				Code: notionapi.Code{
+					Language: "shell",
+					RichText: []notionapi.RichText{
+						{
+							Type: notionapi.ObjectTypeText,
+							Text: notionapi.Text{Content: content},
+						},
+					},
+				},
+			},
 		},
 	}
-	var nChildren notionapi.Blocks
-	nChildren = append(nChildren, termBlock)
-	for i := 0; i < len(nChildren); i++ {
-		fmt.Printf("%d:%+v\n", i+1, nChildren[i])
-	}
+	_, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
+	return err
+}
 
-	request := notionapi.AppendBlockChildrenRequest{Children: nChildren}
+//AppendEmbedBlock: Add a embed block with specified url
+func AppendEmbedBlock(client *notionapi.Client, pageid string, url string) (err error) {
+	request := notionapi.AppendBlockChildrenRequest{
+		Children: []notionapi.Block{
+			&notionapi.EmbedBlock{
+				BasicBlock: notionapi.BasicBlock{
+					Object: notionapi.ObjectTypeBlock,
+					Type:   notionapi.BlockTypeEmbed,
+				},
+				Embed: notionapi.Embed{
+					URL: url,
+				},
+			},
+		},
+	}
 	_, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
 	return err
 }

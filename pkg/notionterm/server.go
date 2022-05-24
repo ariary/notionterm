@@ -94,22 +94,43 @@ func listenAndWaitPageId(s *http.Server, urlCh chan string) string {
 //createNotionTermBlock: udate embed block url to the button URL + create terminal block (code)
 func createNotionTermBlock(config *Config, children notionapi.Blocks, url string) {
 	//CREATE BUTTON BLOCK
-	//Updating the last embed does not work very well => delete embed + create one
+	//TO FIX: Updating the last embed does not work very well => delete embed + create one
 	time.Sleep(1 * time.Second) //wait the embed widget to be loaded
-	embed, err := GetButtonBlock(children)
-	if err != nil {
-		fmt.Println("Failed to create notion block:", err)
-		os.Exit(92)
-	}
+	// embed, err := GetButtonBlock(children)
+	// if err != nil {
+	// 	fmt.Println("Failed to create notion block:", err)
+	// 	os.Exit(92)
+	// }
 
-	if _, err := UpdateButtonUrl(config.Client, embed.ID, url); err != nil {
-		fmt.Println("Failed tranform embed block to button (update URL):", err)
-		os.Exit(92)
-	}
+	// if _, err := UpdateButtonUrl(config.Client, embed.ID, url); err != nil {
+	// 	fmt.Println("Failed tranform embed block to button (update URL):", err)
+	// 	os.Exit(92)
+	// }
 
+	//Check if last embed is well loaded
+	embed := children[len(children)-1]
+	if embed.GetType() == notionapi.BlockTypeBookmark {
+		//delete bookmark + create button (embed)
+		if _, err := config.Client.Block.Delete(context.Background(), embed.GetID()); err != nil {
+			fmt.Println("Failed deleting bookmark:", err)
+			os.Exit(92)
+		}
+		if err := AppendEmbedBlock(config.Client, config.PageID, url); err != nil {
+			fmt.Println("Failed creating embed block", err)
+			os.Exit(92)
+		}
+
+	} else {
+		if _, err := UpdateButtonUrl(config.Client, embed.GetID(), url); err != nil {
+			fmt.Println("Failed tranform embed block to button (update URL):", err)
+			os.Exit(92)
+		}
+	}
 	//CREATE TERMINAL BLOCK
-	if err := AppendCodeBlock(config.Client, children, config.PageID); err != nil {
+	if err := AppendCodeBlock(config.Client, config.PageID, ""); err != nil {
 		fmt.Println("Failed creating terminal block", err)
 		os.Exit(92)
 	}
+
+	time.Sleep(1500 * time.Millisecond)
 }

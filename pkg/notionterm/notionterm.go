@@ -179,6 +179,12 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 	//create block neeeded if server mode
 	if isServer {
 		createNotionTermBlock(&config, children, buttonUrl)
+		//update children
+		children, err = notionion.RequestProxyPageChildren(config.Client, config.PageID)
+		if err != nil {
+			fmt.Println("Failed retrieving page children blocks:", err)
+			os.Exit(92)
+		}
 	}
 
 	button, err := GetButtonBlock(children)
@@ -187,7 +193,7 @@ func Init() (config Config, buttonID notionapi.BlockID, buttonUrl string) {
 		os.Exit(92)
 	} else {
 		fmt.Println("🕹️ button widget found")
-		// //USELESS UNTIL WORKAROUND TO LOAD EMBED LINK IS WITHDRAWN
+		// //TO FIX: USELESS UNTIL WORKAROUND TO LOAD EMBED LINK IS WITHDRAWN
 		// if buttonUrl != "" {
 		// 	if _, err := UpdateButtonUrl(config.Client, button.ID, buttonUrl); err != nil {
 		// 		fmt.Println("Failed updating button url:", err)
