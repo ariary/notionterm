@@ -18,11 +18,12 @@ func main() {
 	var delay int
 	var isServerMode, isConfigFromPage bool
 	var config notionterm.Config
+	config.PS1 = "$ "
 
 	//CMD ROOT
 	var rootCmd = &cobra.Command{Use: "notionterm", Run: func(cmd *cobra.Command, args []string) {
 
-		// integration token
+		// Initialization
 		Init(&config, isServerMode)
 
 		if config.ExternalIP == "" {
@@ -30,8 +31,14 @@ func main() {
 			os.Exit(92)
 		}
 
+		if config.ExternalUrl == "" {
+			config.ExternalUrl = "https://" + config.ExternalIP + ":" + config.Port
+		} else {
+			config.ExternalUrl = "https://" + config.ExternalUrl
+		}
+
 		if isServerMode {
-			config.PageID = notionterm.LaunchUrlWaitingServer(config.Port)
+			config.PageID = notionterm.LaunchUrlWaitingServer(&config)
 			notionterm.DeleteEmbed()
 		}
 
@@ -39,9 +46,13 @@ func main() {
 		var pause = make(chan struct{})
 		stopNotion := notionterm.LaunchNotiontermServer(&config, isServerMode, play, pause)
 
-		notionterm.CreateButtonBlock()
-		notionterm.CreateTerminalBlock()
-		go notionterm.NotionTermV2(config, play, pause)
+		// creation
+		config.CaptionBlock.Id = notionterm.CreateButtonBlock(config)
+		config.CaptionBlock.Type = notionapi.BlockTypeEmbed
+		config.TerminalBlockId = notionterm.CreateTerminalBlock(config)
+
+		// run
+		go notionterm.NotiontermRun(&config, play, pause)
 		pause <- struct{}{}
 		<-stopNotion
 	}}
@@ -53,14 +64,17 @@ func main() {
 		Long:  `only grab information from notion page by performing outgoing HTTP request. No HTTP ingoing traffic is allowed so the notionterm is not used as a server.`,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
+			// Initialization
 			Init(&config, isServerMode)
 
 			var play = make(chan struct{})
 			var pause = make(chan struct{})
 
 			stopNotion := make(chan bool)
-			notionterm.CreateTerminalBlock()
-			go notionterm.NotionTermV2(config, play, pause)
+
+			// creation
+			config.TerminalBlockId = notionterm.CreateTerminalBlock(config)
+			go notionterm.NotiontermRun(&config, play, pause)
 			<-stopNotion
 		},
 	}
@@ -74,6 +88,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVarP(&delay, "delay", "d", 500, "delay between each request to the notion page by notionterm")
 
 	rootCmd.Flags().StringVarP(&config.ExternalIP, "external", "e", "", "external URL/IP of the machine where notionterm runs")
+	rootCmd.Flags().StringVarP(&config.ExternalUrl, "override-url", "o", "", "override external url (useful if coupeld with ngrok)")
 	rootCmd.Flags().BoolVarP(&isServerMode, "server", "s", false, "retrieve notion page id from ingoing HTTP request")
 	rootCmd.Flags().BoolVarP(&isConfigFromPage, "config-from-page", "c", false, "retrieve notionterm configuration from page")
 

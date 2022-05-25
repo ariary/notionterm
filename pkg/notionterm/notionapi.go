@@ -37,9 +37,9 @@ func RequestButtonBlock(client *notionapi.Client, pageid string) (terminal notio
 }
 
 //GetTerminalBlock: retrieve "terminal" block (code blocks)
-func GetTerminalBlock(children notionapi.Blocks) (terminal notionapi.CodeBlock, err error) {
+func GetTerminalBlock(children notionapi.Blocks, termId notionapi.BlockID) (terminal notionapi.CodeBlock, err error) {
 	for i := len(children) - 1; i >= 0; i-- {
-		if children[i].GetType() == notionapi.BlockTypeCode {
+		if children[i].GetType() == notionapi.BlockTypeCode && children[i].GetID() == termId {
 			terminal = *children[i].(*notionapi.CodeBlock)
 			//to do check if terminal is under the button
 			return terminal, nil
@@ -50,27 +50,27 @@ func GetTerminalBlock(children notionapi.Blocks) (terminal notionapi.CodeBlock, 
 }
 
 //RequestTerminalBlock: retrieve "terminal" block (code blocks)
-func RequestTerminalBlock(client *notionapi.Client, pageid string) (terminal notionapi.CodeBlock, err error) {
-	children, err := notionion.RequestProxyPageChildren(client, pageid)
+func RequestTerminalBlock(client *notionapi.Client, pageId string, termId notionapi.BlockID) (terminal notionapi.CodeBlock, err error) {
+	children, err := notionion.RequestProxyPageChildren(client, pageId)
 	if err != nil {
 		return terminal, err
 	}
-	return GetTerminalBlock(children)
+	return GetTerminalBlock(children, termId)
 }
 
 //RequestTerminalCodeContent: Obtain the content of code block object under the request heading
-func RequestTerminalCodeContent(client *notionapi.Client, pageid string) (terminal string, err error) {
+func RequestTerminalCodeContent(client *notionapi.Client, pageid string, termId notionapi.BlockID) (terminal string, err error) {
 
 	children, err := notionion.RequestProxyPageChildren(client, pageid)
 	if err != nil {
 		return "", err
 	}
-	return GetTerminalCodeContent(children)
+	return GetTerminalCodeContent(children, termId)
 }
 
 //GeTerminalCodeContent: Obtain the content of code block object under the request heading whithout making request
-func GetTerminalCodeContent(children notionapi.Blocks) (terminal string, err error) {
-	termCode, err := GetTerminalBlock(children)
+func GetTerminalCodeContent(children notionapi.Blocks, termId notionapi.BlockID) (terminal string, err error) {
+	termCode, err := GetTerminalBlock(children, termId)
 	if err != nil {
 		return "", err
 	}
@@ -362,7 +362,7 @@ func RequestShellFromConfig(client *notionapi.Client, pageid string) (shell stri
 }
 
 //AppendCodeBlock: Add a code block ("shell") at the end of the page
-func AppendCodeBlock(client *notionapi.Client, pageid string, content string) (err error) {
+func AppendCodeBlock(client *notionapi.Client, pageid string, content string) (resp *notionapi.AppendBlockChildrenResponse, err error) {
 	request := notionapi.AppendBlockChildrenRequest{
 		Children: []notionapi.Block{
 			&notionapi.CodeBlock{
@@ -382,12 +382,12 @@ func AppendCodeBlock(client *notionapi.Client, pageid string, content string) (e
 			},
 		},
 	}
-	_, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
-	return err
+	resp, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
+	return resp, err
 }
 
 //AppendEmbedBlock: Add a embed block with specified url
-func AppendEmbedBlock(client *notionapi.Client, pageid string, url string) (err error) {
+func AppendEmbedBlock(client *notionapi.Client, pageid string, url string) (resp *notionapi.AppendBlockChildrenResponse, err error) {
 	request := notionapi.AppendBlockChildrenRequest{
 		Children: []notionapi.Block{
 			&notionapi.EmbedBlock{
@@ -401,6 +401,6 @@ func AppendEmbedBlock(client *notionapi.Client, pageid string, url string) (err 
 			},
 		},
 	}
-	_, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
-	return err
+	resp, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
+	return resp, err
 }

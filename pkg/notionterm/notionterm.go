@@ -2,19 +2,39 @@ package notionterm
 
 import (
 	"fmt"
+	"os"
 	"time"
-)
 
-var pageurl, token string
+	"github.com/jomei/notionapi"
+)
 
 //V2
 
-func CreateButtonBlock() {
-	fmt.Println("Create button")
+//CreateButtonBlock: create embed block with url button
+func CreateButtonBlock(config Config) notionapi.BlockID {
+	buttonUrl := config.ExternalUrl + "/button"
+	resp, err := AppendEmbedBlock(config.Client, config.PageID, buttonUrl)
+	if err != nil {
+		fmt.Println("❌ Failed to create button widget:", err)
+		os.Exit(92)
+	} else if len(resp.Results) < 1 {
+		fmt.Println("❌ Failed to retrieve button widget id after creation:", err)
+		os.Exit(92)
+	}
+	return resp.Results[0].GetID()
 }
 
-func CreateTerminalBlock() {
+func CreateTerminalBlock(config Config) notionapi.BlockID {
 	fmt.Println("Create terminal")
+	resp, err := AppendCodeBlock(config.Client, config.PageID, config.PS1)
+	if err != nil {
+		fmt.Println("❌ Failed to create button widget:", err)
+		os.Exit(92)
+	} else if len(resp.Results) < 1 {
+		fmt.Println("❌ Failed to retrieve button widget id after creation:", err)
+		os.Exit(92)
+	}
+	return resp.Results[0].GetID()
 }
 
 func DeleteEmbed() {
@@ -22,19 +42,28 @@ func DeleteEmbed() {
 }
 
 //NotionTerm: "Infinite loop" to read the content of terminal code block and execute it if it is a command, then returning stdout
-func NotionTermV2(config Config, play chan struct{}, pause chan struct{}) {
-	fmt.Println("Notiontermv2")
+func NotiontermRun(config *Config, play chan struct{}, pause chan struct{}) {
 	for {
 		time.Sleep(config.Delay)
 		select {
 		case <-pause:
-			fmt.Println("pause")
+			//fmt.Println("pause")
 			select {
 			case <-play:
-				fmt.Println("play")
+				//fmt.Println("play")
 			}
 		default:
-			fmt.Println("default")
+			// request last command
+			termBlock, err := RequestTerminalBlock(config.Client, config.PageID, config.TerminalBlockId)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			cmd, err := GetTerminalLastRichText(termBlock)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println("last:", cmd)
 
 		}
 	}

@@ -103,7 +103,7 @@ func LaunchNotiontermServer(config *Config, isServer bool, play chan struct{}, p
 
 	// launch
 	go func() {
-		fmt.Printf("🌀 Start server on %s:%s", config.ExternalIP, config.Port)
+		fmt.Printf("🌀 Start server on %s:%s (%s)\n", config.ExternalIP, config.Port, config.ExternalUrl)
 		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
@@ -113,9 +113,9 @@ func LaunchNotiontermServer(config *Config, isServer bool, play chan struct{}, p
 }
 
 //LaunchUrlWaitingServer: launch the server waiting for url parameter, kill it when task is finished
-func LaunchUrlWaitingServer(port string) (pageid string) {
+func LaunchUrlWaitingServer(config *Config) (pageid string) {
 	m := http.NewServeMux()
-	s := http.Server{Addr: ":" + port, Handler: m}
+	s := http.Server{Addr: ":" + config.Port, Handler: m}
 	urlCh := make(chan string)
 	resp := `
 <html>
@@ -130,7 +130,7 @@ func LaunchUrlWaitingServer(port string) (pageid string) {
 		urlCh <- r.URL.Query().Get("url")
 	})
 	go func() {
-		fmt.Println("🌀 Start server on", port, ".. waiting for notion page url")
+		fmt.Printf("⏳ Start 'waiting url' server, create an embed with link %s/notionterm?url=[notion_url]\n", config.ExternalUrl)
 		if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
