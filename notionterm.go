@@ -57,11 +57,11 @@ func main() {
 		<-stopNotion
 	}}
 
-	//CMD OUTGOING
+	//CMD OUTGOING/LIGHT
 	var cmdOutgoing = &cobra.Command{ //only outgoing HTTP traffic
-		Use:   "outgoing",
-		Short: "only grab information from notion page. No HTTP ingoing traffic is allowed.",
-		Long:  `only grab information from notion page by performing outgoing HTTP request. No HTTP ingoing traffic is allowed so the notionterm is not used as a server.`,
+		Use:   "light",
+		Short: "only grab information from notion page. No HTTP ingoing traffic is used to work.",
+		Long:  `only grab information from notion page by performing outgoing HTTP request. No HTTP ingoing traffic is allowed/required so the notionterm is not used as a server.`,
 		Args:  cobra.MinimumNArgs(0),
 		Run: func(cmd *cobra.Command, args []string) {
 			// Initialization
