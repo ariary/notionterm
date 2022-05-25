@@ -7,11 +7,12 @@ import (
 )
 
 type Config struct {
-	Delay  time.Duration
-	Client *notionapi.Client
-	Port   string
-	PageID string
-	Path   string
-	PS1    string
-	Shell  string
+	Delay      time.Duration
+	Client     *notionapi.Client
+	Port       string
+	PageID     string
+	Path       string
+	PS1        string
+	Shell      string
+	ExternalIP string
 }

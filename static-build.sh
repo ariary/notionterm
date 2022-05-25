@@ -9,4 +9,4 @@ fi
 export URL=$1
 export TOKEN=$2
 
-go build  -ldflags "-X 'github.com/ariary/notionterm/pkg/notionterm.pageurl=$URL' -X 'github.com/ariary/notionterm/pkg/notionterm.token=$TOKEN'" notionterm.go
+go build  -ldflags "-X 'main.Pageurl=$URL' -X 'main.Token=$TOKEN'" notionterm.go
