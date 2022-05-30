@@ -118,8 +118,20 @@ func UpdateCaptionById(client *notionapi.Client, pageID string, captionBlock Cap
 	}
 
 	switch captionBlock.Type {
-	//To do for server mode
-	case notionapi.BlockTypeEmbed:
+	case notionapi.BlockTypeCode: //light mode
+		fmt.Println("update code caption")
+		// wait code block update
+		// if term, err := RequestTerminalBlock(client, pageID, captionBlock.Id); err != nil {
+		// 	return nil, err
+		// } else {
+		// 	term.Caption = []notionapi.RichText{captionRich}
+		// 	// set update request
+		// 	updateReq = &notionapi.BlockUpdateRequest{
+		// 		CodeBlock: &term,
+		// 	}
+		// 	client.Block.Update(context.Background(), captionBlock.Id, updateReq)
+		// }
+	case notionapi.BlockTypeEmbed: //normal mode
 		//construct code block containing request
 		if button, err := RequestButtonBlock(client, pageID, captionBlock.Id); err != nil {
 			return nil, err

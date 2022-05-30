@@ -39,7 +39,7 @@ func main() {
 
 		if isServerMode {
 			config.PageID = notionterm.LaunchUrlWaitingServer(&config)
-			notionterm.DeleteEmbed()
+			notionterm.DeleteEmbed(config)
 		}
 
 		var play = make(chan struct{})
@@ -77,6 +77,8 @@ func main() {
 
 			// creation
 			config.TerminalBlockId = notionterm.CreateTerminalBlock(config)
+			config.CaptionBlock.Id = config.TerminalBlockId
+			config.CaptionBlock.Type = notionapi.BlockTypeCode
 			go notionterm.NotiontermRun(&config, play, pause)
 			<-stopNotion
 		},

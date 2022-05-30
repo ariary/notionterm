@@ -1,6 +1,8 @@
 package notionterm
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ariary/notionion/pkg/notionion"
 	"github.com/jomei/notionapi"
 )
 
@@ -41,8 +44,24 @@ func CreateTerminalBlock(config Config) notionapi.BlockID {
 	return resp.Results[0].GetID()
 }
 
-func DeleteEmbed() {
-	fmt.Println("delete embed")
+func DeleteEmbed(config Config) (err error) {
+	children, err := notionion.RequestProxyPageChildren(config.Client, config.PageID)
+	if err != nil {
+		return err
+	}
+	//Check if last embed is well loaded
+	embed := children[len(children)-1]
+	if embed.GetType() == notionapi.BlockTypeBookmark || embed.GetType() == notionapi.BlockTypeEmbed {
+		//delete bookmark
+		if _, err := config.Client.Block.Delete(context.Background(), embed.GetID()); err != nil {
+			fmt.Println("Failed deleting embed/bookmark:", err)
+			os.Exit(92)
+		}
+	} else {
+		err = errors.New("last block is not an embed or bookmark block")
+	}
+
+	return err
 }
 
 //NotionTerm: "Infinite loop" to read the content of terminal code block and execute it if it is a command, then returning stdout
