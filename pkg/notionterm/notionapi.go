@@ -16,9 +16,9 @@ const PORT = "Port"
 const SHELL = "Shell"
 
 //GetButtonBlock: retrieve "button" block (embed blocks). No tests are made, only return last embed block in page
-func GetButtonBlock(children notionapi.Blocks) (button notionapi.EmbedBlock, err error) {
+func GetButtonBlock(children notionapi.Blocks, buttonId notionapi.BlockID) (button notionapi.EmbedBlock, err error) {
 	for i := len(children) - 1; i >= 0; i-- {
-		if children[i].GetType() == notionapi.BlockTypeEmbed {
+		if children[i].GetType() == notionapi.BlockTypeEmbed && children[i].GetID() == buttonId {
 			button = *children[i].(*notionapi.EmbedBlock)
 			return button, nil
 		}
@@ -28,12 +28,12 @@ func GetButtonBlock(children notionapi.Blocks) (button notionapi.EmbedBlock, err
 }
 
 //RequestButtonBlock: retrieve "button" widget (embed block)
-func RequestButtonBlock(client *notionapi.Client, pageid string) (terminal notionapi.EmbedBlock, err error) {
+func RequestButtonBlock(client *notionapi.Client, pageid string, buttonId notionapi.BlockID) (button notionapi.EmbedBlock, err error) {
 	children, err := notionion.RequestProxyPageChildren(client, pageid)
 	if err != nil {
-		return terminal, err
+		return button, err
 	}
-	return GetButtonBlock(children)
+	return GetButtonBlock(children, buttonId)
 }
 
 //GetTerminalBlock: retrieve "terminal" block (code blocks)
@@ -101,11 +101,9 @@ func UpdateButtonUrl(client *notionapi.Client, buttonID notionapi.BlockID, url s
 	return client.Block.Update(context.Background(), buttonID, updateReq)
 }
 
-//UpdateButtonCaption: update caption of the given button widget
-func UpdateButtonCaption(client *notionapi.Client, button notionapi.EmbedBlock, caption string) (notionapi.Block, error) {
-	//construct code block containing request
-	widget := button
-
+//UpdateCaptionID: update caption of the given button widget
+func UpdateCaptionById(client *notionapi.Client, pageID string, captionBlock CaptionBlock, caption string) (notionapi.Block, error) {
+	var updateReq *notionapi.BlockUpdateRequest
 	captionRich := notionapi.RichText{
 		Type: notionapi.ObjectTypeText,
 		Text: notionapi.Text{
@@ -119,13 +117,22 @@ func UpdateButtonCaption(client *notionapi.Client, button notionapi.EmbedBlock, 
 		},
 	}
 
-	widget.Embed.Caption = []notionapi.RichText{captionRich}
-	// send update request
-	updateReq := &notionapi.BlockUpdateRequest{
-		Embed: &widget.Embed,
+	switch captionBlock.Type {
+	//To do for server mode
+	case notionapi.BlockTypeEmbed:
+		//construct code block containing request
+		if button, err := RequestButtonBlock(client, pageID, captionBlock.Id); err != nil {
+			return nil, err
+		} else {
+			button.Embed.Caption = []notionapi.RichText{captionRich}
+			// set update request
+			updateReq = &notionapi.BlockUpdateRequest{
+				Embed: &button.Embed,
+			}
+		}
 	}
 
-	return client.Block.Update(context.Background(), button.ID, updateReq)
+	return client.Block.Update(context.Background(), captionBlock.Id, updateReq)
 }
 
 //UpdateCodeCaption: update caption of the given code block

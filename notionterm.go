@@ -49,6 +49,9 @@ func main() {
 		// creation
 		config.CaptionBlock.Id = notionterm.CreateButtonBlock(config)
 		config.CaptionBlock.Type = notionapi.BlockTypeEmbed
+		if _, err := notionterm.UpdateCaptionById(config.Client, config.PageID, config.CaptionBlock, config.Path); err != nil { //add caption
+			fmt.Println("Failed setting button caption:", err)
+		}
 		config.TerminalBlockId = notionterm.CreateTerminalBlock(config)
 
 		// run
@@ -88,7 +91,7 @@ func main() {
 	rootCmd.PersistentFlags().IntVarP(&delay, "delay", "d", 500, "delay between each request to the notion page by notionterm")
 
 	rootCmd.Flags().StringVarP(&config.ExternalIP, "external", "e", "", "external URL/IP of the machine where notionterm runs")
-	rootCmd.Flags().StringVarP(&config.ExternalUrl, "override-url", "o", "", "override external url (useful if coupeld with ngrok)")
+	rootCmd.Flags().StringVarP(&config.ExternalUrl, "override-url", "o", "", "override external url (useful if coupled with ngrok)")
 	rootCmd.Flags().BoolVarP(&isServerMode, "server", "s", false, "retrieve notion page id from ingoing HTTP request")
 	rootCmd.Flags().BoolVarP(&isConfigFromPage, "config-from-page", "c", false, "retrieve notionterm configuration from page")
 
@@ -130,6 +133,14 @@ func Init(config *notionterm.Config, isServer bool) {
 
 	//client
 	config.Client = notionapi.NewClient(notionapi.Token(Token))
+
+	//get current path
+	if path, err := os.Getwd(); err != nil {
+		fmt.Println(err)
+		os.Exit(92)
+	} else {
+		config.Path = path
+	}
 }
 
 //getPAgeId: return notion page id from a notion page url
