@@ -6,6 +6,9 @@
   
   <strong> Embed reverse shell in <a href="https://www.notion.so">Notion</a> pages.</strong><br>
   <i>Hack while taking notes</i>
+
+<a href="https://github.com/spencerpauly/awesome-notion"><img src="https://awesome.re/mentioned-badge.svg"></a>
+
 </div>
 
 ---
