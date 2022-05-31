@@ -105,8 +105,10 @@ git clone https://github.com/ariary/notionterm.git && cd notionterm
 GOOS=$GOOS go build notionterm.go
 ```
 
-### "all-inclusive" build
-Embed directly the notion integration API token and notion page url in the binary. ⚠️ everybody with access to the binary can retrived the token. For security reason don't share it and remove it after use.
+You will need to set API key and notion page URL using either env var (`NOTION_TOKEN` & `NOTION_PAGE_URL`) or flags (`--token` & `--page-url`)
+
+### "All-inclusive" build
+Embed directly the notion integration API token and notion page url in the binary. *⚠️ everybody with access to the binary can retrived the token. For security reason don't share it and remove it after use.*
 
 Set according env var:
 ```shell
