@@ -15,7 +15,7 @@ const TARGET = "Target"
 const PORT = "Port"
 const SHELL = "Shell"
 
-//GetButtonBlock: retrieve "button" block (embed blocks). No tests are made, only return last embed block in page
+//GetButtonBlock: retrieve "button" block (embed blocks)
 func GetButtonBlock(children notionapi.Blocks, buttonId notionapi.BlockID) (button notionapi.EmbedBlock, err error) {
 	for i := len(children) - 1; i >= 0; i-- {
 		if children[i].GetType() == notionapi.BlockTypeEmbed && children[i].GetID() == buttonId {
@@ -34,6 +34,27 @@ func RequestButtonBlock(client *notionapi.Client, pageid string, buttonId notion
 		return button, err
 	}
 	return GetButtonBlock(children, buttonId)
+}
+
+//GetHeadingCaptionBlock: retrieve heading3 block by id.
+func GetHeadingCaptionBlock(children notionapi.Blocks, headingID notionapi.BlockID) (headingCaption notionapi.Heading3Block, err error) {
+	for i := len(children) - 1; i >= 0; i-- {
+		if children[i].GetType() == notionapi.BlockTypeHeading3 && children[i].GetID() == headingID {
+			headingCaption = *children[i].(*notionapi.Heading3Block)
+			return headingCaption, nil
+		}
+	}
+	err = fmt.Errorf("Failed retrieving caption heading")
+	return headingCaption, err
+}
+
+//RequestButtonBlock: retrieve heading 3 block to store caption/path
+func RequestHeadingCaptionBlock(client *notionapi.Client, pageid string, headingID notionapi.BlockID) (button notionapi.Heading3Block, err error) {
+	children, err := notionion.RequestProxyPageChildren(client, pageid)
+	if err != nil {
+		return button, err
+	}
+	return GetHeadingCaptionBlock(children, headingID)
 }
 
 //GetTerminalBlock: retrieve "terminal" block (code blocks)
@@ -101,7 +122,7 @@ func UpdateButtonUrl(client *notionapi.Client, buttonID notionapi.BlockID, url s
 	return client.Block.Update(context.Background(), buttonID, updateReq)
 }
 
-//UpdateCaptionID: update caption of the given button widget
+//UpdateCaptionID: update caption of captionBlock. For the light mode the "caption block" is a heading3 so we change the content (not the caption)
 func UpdateCaptionById(client *notionapi.Client, pageID string, captionBlock CaptionBlock, caption string) (notionapi.Block, error) {
 	var updateReq *notionapi.BlockUpdateRequest
 	captionRich := notionapi.RichText{
@@ -118,19 +139,17 @@ func UpdateCaptionById(client *notionapi.Client, pageID string, captionBlock Cap
 	}
 
 	switch captionBlock.Type {
-	case notionapi.BlockTypeCode: //light mode
-		fmt.Println("update code caption")
-		// wait code block update
-		// if term, err := RequestTerminalBlock(client, pageID, captionBlock.Id); err != nil {
-		// 	return nil, err
-		// } else {
-		// 	term.Caption = []notionapi.RichText{captionRich}
-		// 	// set update request
-		// 	updateReq = &notionapi.BlockUpdateRequest{
-		// 		CodeBlock: &term,
-		// 	}
-		// 	client.Block.Update(context.Background(), captionBlock.Id, updateReq)
-		// }
+	case notionapi.BlockTypeHeading3: //light mode
+		if headingCaption, err := RequestHeadingCaptionBlock(client, pageID, captionBlock.Id); err != nil {
+			return nil, err
+		} else {
+			headingCaption.Heading3.RichText = []notionapi.RichText{captionRich}
+			// set update request
+			updateReq = &notionapi.BlockUpdateRequest{
+				Heading3: &headingCaption.Heading3,
+			}
+			client.Block.Update(context.Background(), captionBlock.Id, updateReq)
+		}
 	case notionapi.BlockTypeEmbed: //normal mode
 		//construct code block containing request
 		if button, err := RequestButtonBlock(client, pageID, captionBlock.Id); err != nil {
@@ -416,6 +435,41 @@ func AppendEmbedBlock(client *notionapi.Client, pageid string, url string) (resp
 				},
 				Embed: notionapi.Embed{
 					URL: url,
+				},
+			},
+		},
+	}
+	resp, err = client.Block.AppendChildren(context.Background(), notionapi.BlockID(pageid), &request)
+	return resp, err
+}
+
+//AppendEmbedBlock: Add a embed block with specified url
+func AppendHeadingBlock(client *notionapi.Client, pageid string, content string) (resp *notionapi.AppendBlockChildrenResponse, err error) {
+	//heading content
+	var richs []notionapi.RichText
+	rich := notionapi.RichText{
+		Type: notionapi.ObjectTypeText,
+		Text: notionapi.Text{
+			Content: content,
+		},
+		Annotations: &notionapi.Annotations{
+			Bold:   false,
+			Italic: true,
+			Code:   true,
+			Color:  "green",
+		},
+	}
+	richs = append(richs, rich)
+
+	request := notionapi.AppendBlockChildrenRequest{
+		Children: []notionapi.Block{
+			&notionapi.Heading3Block{
+				BasicBlock: notionapi.BasicBlock{
+					Object: notionapi.ObjectTypeBlock,
+					Type:   notionapi.BlockTypeHeading3,
+				},
+				Heading3: notionapi.Heading{
+					RichText: richs,
 				},
 			},
 		},

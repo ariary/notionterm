@@ -76,9 +76,13 @@ func main() {
 			stopNotion := make(chan bool)
 
 			// creation
+			config.CaptionBlock.Id = notionterm.CreateHeadingCaptionBlock(config)
+			config.CaptionBlock.Type = notionapi.BlockTypeHeading3
 			config.TerminalBlockId = notionterm.CreateTerminalBlock(config)
-			config.CaptionBlock.Id = config.TerminalBlockId
-			config.CaptionBlock.Type = notionapi.BlockTypeCode
+
+			if _, err := notionterm.UpdateCaptionById(config.Client, config.PageID, config.CaptionBlock, "📂 "+config.Path); err != nil { //add caption
+				fmt.Println("Failed setting button caption:", err)
+			}
 			go notionterm.NotiontermRun(&config, play, pause)
 			<-stopNotion
 		},

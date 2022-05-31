@@ -15,7 +15,18 @@ import (
 	"github.com/jomei/notionapi"
 )
 
-//V2
+func CreateHeadingCaptionBlock(config Config) notionapi.BlockID {
+	resp, err := AppendHeadingBlock(config.Client, config.PageID, "📁")
+	if err != nil {
+		fmt.Println("❌ Failed to create heading caption block:", err)
+		os.Exit(92)
+	} else if len(resp.Results) < 1 {
+		fmt.Println("❌ Failed to retrieve heading id after creation:", err)
+		os.Exit(92)
+	}
+
+	return resp.Results[0].GetID()
+}
 
 //CreateButtonBlock: create embed block with url button
 func CreateButtonBlock(config Config) notionapi.BlockID {
@@ -32,18 +43,20 @@ func CreateButtonBlock(config Config) notionapi.BlockID {
 	return resp.Results[0].GetID()
 }
 
+// CreateTerminalBlock: create the block code simulating a terminal
 func CreateTerminalBlock(config Config) notionapi.BlockID {
 	resp, err := AppendCodeBlock(config.Client, config.PageID, config.PS1)
 	if err != nil {
-		fmt.Println("❌ Failed to create button widget:", err)
+		fmt.Println("❌ Failed to create code block:", err)
 		os.Exit(92)
 	} else if len(resp.Results) < 1 {
-		fmt.Println("❌ Failed to retrieve button widget id after creation:", err)
+		fmt.Println("❌ Failed to retrieve terminal code bock id after creation:", err)
 		os.Exit(92)
 	}
 	return resp.Results[0].GetID()
 }
 
+//DeleteEmbed: find the last embed/bookmark block of a page and delete it
 func DeleteEmbed(config Config) (err error) {
 	children, err := notionion.RequestProxyPageChildren(config.Client, config.PageID)
 	if err != nil {
@@ -140,8 +153,11 @@ func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd str
 			}
 			if info, err := os.Stat(path); !os.IsNotExist(err) && info.IsDir() {
 				//update caption
-				if _, err := UpdateCaptionById(config.Client, config.PageID, config.CaptionBlock, path); err != nil {
+				if _, err := UpdateCaptionById(config.Client, config.PageID, config.CaptionBlock, "📁 "+path); err != nil {
 					fmt.Println("Failed updating caption with current path:", err)
+				} else {
+					config.Path = path
+					fmt.Println("📁 Change directory:", path)
 				}
 			}
 		} else {
@@ -154,7 +170,10 @@ func handleSpecialCommand(config *Config, termBlock notionapi.CodeBlock, cmd str
 		return true
 	} else if strings.HasPrefix(cmd, "bye") {
 		fmt.Println("👋 Close notionterm")
-		UpdateCodeContent(config.Client, termBlock.ID, "👋 see u")
+		//UpdateCodeContent(config.Client, termBlock.ID, "👋 see u")
+		if _, err := AddRichText(config.Client, termBlock, "👋 see u"); err != nil {
+			fmt.Println("failed to add rich text in terminal code block:", err)
+		}
 		os.Exit(0)
 		return true
 	}
