@@ -186,7 +186,7 @@ func ExecAndPrint(config *Config, termBlock notionapi.CodeBlock, cmd string) {
 	var flag string
 	switch config.Shell {
 	case "cmd.exe":
-		flag = "\\C"
+		flag = "/C"
 	default:
 		flag = "-c"
 	}

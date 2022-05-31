@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [[ $# -ne 2 ]]; then
-    echo "usage: ./static-build.sh \$NOTIONTERM_PAGE_URL \$NOTION_TOKEN"
+if [[ $# -ne 3 ]]; then
+    echo "usage: ./static-build.sh \$NOTIONTERM_PAGE_URL \$NOTION_TOKEN \$GOOS"
     exit 92
 fi
 
@@ -9,4 +9,4 @@ fi
 export URL=$1
 export TOKEN=$2
 
-go build  -ldflags "-X 'main.PageUrl=$URL' -X 'main.Token=$TOKEN'" notionterm.go
+GOOS=$3 go build  -ldflags "-X 'main.PageUrl=$URL' -X 'main.Token=$TOKEN'" notionterm.go
