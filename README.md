@@ -20,8 +20,7 @@
 <h3>FOR ➕:</h3>
 <ul>
   <li>Hiding attacker IP in reverse shell <i>(No direct interaction between attacker and target machine. Notion is used as a proxy hosting the reverse shell)</i></li>
-  <li>Demo</li>
-  <li>Quick proof insertion within report</li>
+  <li>Demo/Quick proof insertion within report</li>
   <li>High available and shareable reverse shell (desktop, browser, mobile)</li>
   <li>Encrypted and authenticated remote shell</li>
 </ul> 
