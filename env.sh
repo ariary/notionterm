@@ -7,4 +7,4 @@ echo -n "Enter notion page url: "
 read pageurl
 
 export NOTION_TOKEN="$token"
-export NOTION_TERM_PAGE_URL="$pageurl"
+export NOTION_PAGE_URL="$pageurl"

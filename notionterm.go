@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/ariary/go-utils/pkg/host"
@@ -18,7 +19,6 @@ func main() {
 	var delay int
 	var isServerMode, isConfigFromPage bool
 	var config notionterm.Config
-	config.PS1 = "$ "
 
 	//CMD ROOT
 	var rootCmd = &cobra.Command{Use: "notionterm", Run: func(cmd *cobra.Command, args []string) {
@@ -26,6 +26,7 @@ func main() {
 		// Initialization
 		Init(&config, isServerMode)
 
+		DetectExternalIP(&config)
 		if config.ExternalIP == "" {
 			fmt.Println("❌ Failed to get external URL/IP from flags and detection")
 			os.Exit(92)
@@ -69,6 +70,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			// Initialization
 			Init(&config, isServerMode)
+			fmt.Println("Shell:", config.Shell)
 
 			var play = make(chan struct{})
 			var pause = make(chan struct{})
@@ -93,7 +95,7 @@ func main() {
 	rootCmd.PersistentFlags().StringVarP(&Token, "token", "t", Token, "notion integration key")
 	rootCmd.PersistentFlags().StringVarP(&PageUrl, "page-url", "u", PageUrl, "notion page url")
 	rootCmd.PersistentFlags().StringVarP(&config.Port, "port", "p", "9292", "notionterm HTTP listening port")
-	rootCmd.PersistentFlags().StringVarP(&config.Shell, "shell", "r", "sh", "shell runtime to execute command with notionterm (sh, bash, and cmd.exe)")
+	rootCmd.PersistentFlags().StringVarP(&config.Shell, "shell", "r", "", "shell runtime to execute command with notionterm (sh, bash, and cmd.exe)")
 	rootCmd.PersistentFlags().IntVarP(&delay, "delay", "d", 500, "delay between each request to the notion page by notionterm")
 
 	rootCmd.Flags().StringVarP(&config.ExternalIP, "external", "e", "", "external URL/IP of the machine where notionterm runs")
@@ -105,7 +107,7 @@ func main() {
 	rootCmd.Execute()
 }
 
-//Init: intialize additional variables
+//Init: intialize additional variables (token, pageid, client, path, PS1 , shell runtime)
 func Init(config *notionterm.Config, isServer bool) {
 	//integration token
 	if Token == "" {
@@ -121,6 +123,55 @@ func Init(config *notionterm.Config, isServer bool) {
 		config.PageID = getPageId(PageUrl)
 	}
 
+	//client
+	config.Client = notionapi.NewClient(notionapi.Token(Token))
+
+	//get current path
+	if path, err := os.Getwd(); err != nil {
+		fmt.Println(err)
+		os.Exit(92)
+	} else {
+		config.Path = path
+	}
+
+	//PS1 & Shell runtime
+	switch runtime.GOOS {
+	case "linux":
+		config.PS1 = "$ "
+		if config.Shell == "" {
+			config.Shell = "sh"
+		}
+	case "windows":
+		config.PS1 = "> "
+		if config.Shell == "" {
+			config.Shell = "cmd.exe"
+		}
+	default:
+		config.PS1 = "$ "
+	}
+}
+
+//getPAgeId: return notion page id from a notion page url
+func getPageId(pageurl string) (pageid string) {
+	if pageurl == "" {
+		pageurl = os.Getenv("NOTION_PAGE_URL")
+		if pageurl == "" {
+			fmt.Println("❌ Please set NOTION_PAGE_URL envvar with your page id before launching notionterm (CTRL+L on desktop app), or use --page flag")
+			os.Exit(92)
+		}
+	}
+
+	pageid = pageurl[strings.LastIndex(pageurl, "-")+1:]
+	if pageid == pageurl {
+		fmt.Println("❌ PAGEID was not found in NOTION_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
+		os.Exit(92)
+	}
+
+	return pageid
+}
+
+//DetectExternalIP: Try to detect external IP using dig & host
+func DetectExternalIP(config *notionterm.Config) {
 	// external ip/url
 	if config.ExternalIP == "" {
 		//try to find it
@@ -136,34 +187,4 @@ func Init(config *notionterm.Config, isServer bool) {
 			}
 		}
 	}
-
-	//client
-	config.Client = notionapi.NewClient(notionapi.Token(Token))
-
-	//get current path
-	if path, err := os.Getwd(); err != nil {
-		fmt.Println(err)
-		os.Exit(92)
-	} else {
-		config.Path = path
-	}
-}
-
-//getPAgeId: return notion page id from a notion page url
-func getPageId(pageurl string) (pageid string) {
-	if pageurl == "" {
-		pageurl = os.Getenv("NOTION_TERM_PAGE_URL")
-		if pageurl == "" {
-			fmt.Println("❌ Please set NOTION_TERM_PAGE_URL envvar with your page id before launching notionterm (CTRL+L on desktop app), or use --page flag")
-			os.Exit(92)
-		}
-	}
-
-	pageid = pageurl[strings.LastIndex(pageurl, "-")+1:]
-	if pageid == pageurl {
-		fmt.Println("❌ PAGEID was not found in NOTION_TERM_PAGE_URL. Ensure the url is in the form of https://notion.so/[pagename]-[pageid]")
-		os.Exit(92)
-	}
-
-	return pageid
 }
