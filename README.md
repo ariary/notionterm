@@ -59,7 +59,7 @@ roughly inspired by the great idea of <a href="https://github.com/mttaggart/Offe
 ## Quickstart
 
 ### 🏗️ Set-up
-1. Create a page and give to the integration API key the permissions to have write access to the page
+1. Create a page and give to the integration API key the permissions to have page write access
 2. Build `notionterm` and transfer it on target machine (see [install](#install))
 
 ### 👟 Run
