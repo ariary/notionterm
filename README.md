@@ -59,7 +59,7 @@ roughly inspired by the great idea of <a href="https://github.com/mttaggart/Offe
 
 ### 🏗️ Set-up
 1. Create a page and give to the integration API key the permissions to have page write access
-2. Build `notionterm` and transfer it on target machine (see [install](#install))
+2. Build `notionterm` and transfer it on target machine (see [Build](#build))
 
 ### 👟 Run
 
@@ -89,7 +89,7 @@ notionterm light [flags]
 </code>
 </details>
 
-## Install
+## Build
 
 As `notionterm` is aimed to be run on target machine it must be built to fit with it.
 
@@ -117,5 +117,5 @@ export NOTION_TOKEN=[INTEGRATION_NOTION_TOKEN]
 And build it:
 ```
 git clone https://github.com/ariary/notionterm.git && cd notionterm
-./static-build.sh $NOTION_PAGE_URL $NOTION_TOKEN $GOOS go build notionterm.go
+./static-build.sh $NOTION_PAGE_URL $NOTION_TOKEN $GOOS
 ```
