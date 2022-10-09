@@ -15,6 +15,7 @@
 
 ![demo](https://github.com/ariary/notionterm/blob/main/img/demo_dark_light.gif)
 
+
 ---
 <div align=left>
 <h3>FOR ➕:</h3>
@@ -54,6 +55,12 @@ Just use notion as usual and launch <code>notionterm</code> on target.
 <blockquote align=left>
 roughly inspired by the great idea of <a href="https://github.com/mttaggart/OffensiveNotion">OffensiveNotion</a> and <a href="https://github.com/ariary/Notionion">notionion</a>! 
 </blockquote>
+
+
+## TL;DR
+
+Learn command and flags is too boring: **Use `wrap-notionterm.sh`**
+
 
 ## Quickstart
 

@@ -70,7 +70,6 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			// Initialization
 			Init(&config, isServerMode)
-			fmt.Println("Shell:", config.Shell)
 
 			var play = make(chan struct{})
 			var pause = make(chan struct{})
