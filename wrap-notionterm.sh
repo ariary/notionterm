@@ -91,12 +91,15 @@ if [[ "$SHORTCUT" ]]; then
     surge .
     rm sh CNAME
     REMOTE_CMD="curl https://notionterm.surge.sh/sh|sh\n"
-    YELLOW='\033[0;33m'
-    NC='\033[0m' # No Color
     clear
-    echo -e "${YELLOW} Your notion api token is exposed! Do not forget to launch \"surge teardown notionterm.surge.sh\" once finished!${NC}"
-    # curl ${SHORTCUT_URL} |sh\n work but trigger error (/pkg/tacos/tacos.go:94)
-    # sh <() only work in zsh & bash
 fi
 
 echo -e  "${REMOTE_CMD}"
+
+if [[ "$SHORTCUT" ]]; then
+    trap 'surge teardown notionterm.surge.sh' SIGINT
+    YELLOW='\033[0;33m'
+    NC='\033[0m' # No Color
+    echo
+    echo -e "${YELLOW}CTRL+C when job done (trigger 'surge teardown notionterm.surge.sh')${NC}" && sleep infinity
+fi
